@@ -1,6 +1,5 @@
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { db, storage } from "./firebase";
+import { db } from "./firebase";
 
 export interface SignatureDoc {
   token: string;
@@ -13,9 +12,22 @@ export interface SignatureDoc {
   signedFileUrl?: string;
 }
 
+const WORKER_URL = process.env.NEXT_PUBLIC_CF_WORKER_URL!;
+const R2_PUBLIC_URL = process.env.NEXT_PUBLIC_CF_R2_PUBLIC_URL!;
+
+async function uploadToR2(key: string, data: File | Blob): Promise<string> {
+  const res = await fetch(`${WORKER_URL}/${key}`, {
+    method: "PUT",
+    body: data,
+    headers: { "Content-Type": "application/pdf" },
+  });
+  if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+  const json = await res.json() as { url: string };
+  return json.url;
+}
+
 export async function uploadOriginalPdf(file: File, token: string): Promise<void> {
-  const storageRef = ref(storage, `pdfs/${token}/original.pdf`);
-  await uploadBytes(storageRef, file, { contentType: "application/pdf" });
+  await uploadToR2(`pdfs/${token}/original.pdf`, file);
 }
 
 export async function createSignatureDoc(
@@ -38,16 +50,13 @@ export async function getSignatureDoc(token: string): Promise<SignatureDoc | nul
   return snap.data() as SignatureDoc;
 }
 
-export async function getOriginalPdfUrl(token: string): Promise<string> {
-  const storageRef = ref(storage, `pdfs/${token}/original.pdf`);
-  return getDownloadURL(storageRef);
+export function getOriginalPdfUrl(token: string): string {
+  return `${R2_PUBLIC_URL}/pdfs/${token}/original.pdf`;
 }
 
 export async function uploadSignedPdf(bytes: Uint8Array, token: string): Promise<string> {
-  const storageRef = ref(storage, `pdfs/${token}/signed.pdf`);
   const blob = new Blob([bytes as unknown as BlobPart], { type: "application/pdf" });
-  await uploadBytes(storageRef, blob, { contentType: "application/pdf" });
-  return getDownloadURL(storageRef);
+  return uploadToR2(`pdfs/${token}/signed.pdf`, blob);
 }
 
 export async function markAsSigned(
