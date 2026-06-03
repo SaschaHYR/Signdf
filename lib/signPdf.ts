@@ -26,11 +26,17 @@ export async function signPdf(
 ): Promise<Uint8Array> {
   const arrayBuffer = source instanceof File ? await source.arrayBuffer() : source;
 
+  const header = new Uint8Array(arrayBuffer.slice(0, 5));
+  const headerStr = Array.from(header).map(b => String.fromCharCode(b)).join("");
+  if (!headerStr.startsWith("%PDF")) {
+    throw new Error("Le fichier reçu n'est pas un PDF valide (en-tête incorrect).");
+  }
+
   let doc: PDFDocument;
   try {
     doc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: false });
-  } catch {
-    throw new Error("Ce PDF est protégé ou corrompu et ne peut pas être signé.");
+  } catch (e) {
+    throw new Error(`PDF illisible : ${e instanceof Error ? e.message : "format inconnu"}`);
   }
 
   doc.registerFontkit(fontkit);

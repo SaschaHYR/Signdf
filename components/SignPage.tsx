@@ -72,6 +72,11 @@ export default function SignPage({ token }: { token: string }) {
 
     try {
       const response = await fetch(pdfUrl);
+      if (!response.ok) throw new Error(`Impossible de charger le PDF (${response.status})`);
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!contentType.includes("pdf") && !contentType.includes("octet-stream")) {
+        throw new Error("Le fichier récupéré n'est pas un PDF valide.");
+      }
       const arrayBuffer = await response.arrayBuffer();
       const bytes = await signPdf(arrayBuffer, {
         prenom: prenom.trim(),
