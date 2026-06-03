@@ -1,4 +1,5 @@
 import { PDFDocument, rgb, PDFFont } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
 
 export interface PlacementCoord {
   page: number;   // 0-indexed
@@ -32,6 +33,7 @@ export async function signPdf(
     throw new Error("Ce PDF est protégé ou corrompu et ne peut pas être signé.");
   }
 
+  doc.registerFontkit(fontkit);
   const dancingScript = await loadFont(doc, "/fonts/DancingScript-Bold.ttf");
   const whisper = await loadFont(doc, "/fonts/Whisper-Regular.ttf");
 
