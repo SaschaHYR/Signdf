@@ -1,0 +1,224 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { getSignatureDoc, getOriginalPdfUrl, uploadSignedPdf, markAsSigned, SignatureDoc } from "@/lib/uploadPdf";
+import { signPdf, downloadBytes } from "@/lib/signPdf";
+import { sendSignatureEmail } from "@/lib/emailjs";
+
+type PageStatus = "loading" | "ready" | "already-signed" | "invalid" | "signing" | "success" | "error";
+
+export default function SignPage({ token }: { token: string }) {
+  const [pageStatus, setPageStatus] = useState<PageStatus>("loading");
+  const [sigDoc, setSigDoc] = useState<SignatureDoc | null>(null);
+  const [pdfUrl, setPdfUrl] = useState("");
+  const [prenom, setPrenom] = useState("");
+  const [nom, setNom] = useState("");
+  const [email, setEmail] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [signedUrl, setSignedUrl] = useState("");
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const docData = await getSignatureDoc(token);
+        if (!docData) { setPageStatus("invalid"); return; }
+        if (docData.status === "signed") {
+          setSigDoc(docData);
+          setSignedUrl(docData.signedFileUrl ?? "");
+          setPageStatus("already-signed");
+          return;
+        }
+        const url = await getOriginalPdfUrl(token);
+        setSigDoc(docData);
+        setPdfUrl(url);
+        setPageStatus("ready");
+      } catch {
+        setPageStatus("invalid");
+      }
+    }
+    load();
+  }, [token]);
+
+  const handleSign = async () => {
+    if (!prenom.trim() || !nom.trim()) { setErrorMsg("Prénom et nom requis."); return; }
+    if (!email.trim() || !email.includes("@")) { setErrorMsg("Email valide requis."); return; }
+    if (!sigDoc) return;
+
+    setPageStatus("signing");
+    setErrorMsg("");
+
+    try {
+      const response = await fetch(pdfUrl);
+      const arrayBuffer = await response.arrayBuffer();
+      const bytes = await signPdf(arrayBuffer, { prenom: prenom.trim(), nom: nom.trim() });
+      const signedFileUrl = await uploadSignedPdf(bytes, token);
+      await markAsSigned(token, email.trim(), signedFileUrl);
+
+      const fullName = `${prenom.trim()} ${nom.trim()}`;
+      const fileName = sigDoc.fileName;
+
+      try {
+        await sendSignatureEmail({ toEmail: email.trim(), toName: fullName, signataireName: fullName, fileName, signedFileUrl, role: "signataire" });
+        await sendSignatureEmail({ toEmail: sigDoc.emailExpediteur, toName: "l'expéditeur", signataireName: fullName, fileName, signedFileUrl, role: "expediteur" });
+      } catch (emailErr) {
+        console.error("Email non envoyé:", emailErr);
+      }
+
+      downloadBytes(bytes, fileName.replace(/\.pdf$/i, "_signé.pdf"));
+      setSignedUrl(signedFileUrl);
+      setPageStatus("success");
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : "Erreur lors de la signature.");
+      setPageStatus("ready");
+    }
+  };
+
+  return (
+    <div className="relative min-h-screen flex items-center justify-center overflow-hidden" style={{ background: "var(--bg)" }}>
+      <div className="bg-grid" />
+      <div className="scanlines" />
+      <div className="corner corner-tl" />
+      <div className="corner corner-tr" />
+      <div className="corner corner-bl" />
+      <div className="corner corner-br" />
+
+      <div className="relative z-10" style={{ width: 500 }}>
+        <div style={{ background: "rgba(24,24,27,0.92)", border: "1px solid rgba(224,48,48,0.3)", borderRadius: 4, padding: "40px 44px", backdropFilter: "blur(20px)", position: "relative", boxShadow: "0 0 40px rgba(224,48,48,0.08),0 0 80px rgba(0,0,0,0.8)" }}>
+          <div style={{ position: "absolute", top: -1, left: "10%", right: "10%", height: 1, background: "linear-gradient(90deg,transparent,#E03030,transparent)", filter: "blur(1px)" }} />
+          <div style={{ position: "absolute", top: -1, left: "25%", right: "25%", height: 1, background: "#E03030", boxShadow: "0 0 12px #E03030" }} />
+
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "Orbitron,monospace", fontSize: 9, letterSpacing: 3, textTransform: "uppercase", color: "var(--red)", border: "1px solid rgba(224,48,48,0.3)", padding: "4px 10px", borderRadius: 2, marginBottom: 14 }}>
+              <span style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--red)", boxShadow: "0 0 6px var(--red)", display: "inline-block", animation: "dotPulse 2s ease-in-out infinite" }} />
+              DEMANDE DE SIGNATURE
+            </div>
+            <div style={{ fontFamily: "Orbitron,monospace", fontSize: 24, fontWeight: 900, color: "#fff", letterSpacing: 2 }}>
+              e-SIGN<span style={{ color: "var(--red)" }}>.</span>PDF
+            </div>
+            {sigDoc && (
+              <div style={{ fontFamily: "Rajdhani,sans-serif", fontSize: 12, color: "var(--zinc-400)", marginTop: 6 }}>
+                Document : <span style={{ color: "var(--zinc-300)" }}>{sigDoc.fileName}</span>
+              </div>
+            )}
+          </div>
+
+          {pageStatus === "loading" && <LoadingState />}
+          {pageStatus === "invalid" && <MessageState color="#ff6b6b" icon="✕" title="Lien invalide ou expiré" sub="Ce lien de signature n'existe pas ou a déjà été utilisé." />}
+
+          {pageStatus === "already-signed" && (
+            <div style={{ textAlign: "center" }}>
+              <MessageState color="#22C55E" icon="✓" title="Document déjà signé" sub="Ce document a déjà été signé." />
+              {signedUrl && (
+                <a href={signedUrl} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 16, padding: "10px 20px", background: "var(--red)", borderRadius: 2, color: "#fff", fontFamily: "Orbitron,monospace", fontSize: 10, letterSpacing: 2, textDecoration: "none" }}>
+                  ↓ TÉLÉCHARGER LE PDF SIGNÉ
+                </a>
+              )}
+            </div>
+          )}
+
+          {(pageStatus === "ready" || pageStatus === "signing" || pageStatus === "error") && (
+            <>
+              {pdfUrl && (
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontFamily: "Orbitron,monospace", fontSize: 8, letterSpacing: 2, textTransform: "uppercase", color: "var(--zinc-400)", marginBottom: 8 }}>Aperçu du document</div>
+                  <a href={pdfUrl} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: "var(--zinc-800)", border: "1px solid var(--zinc-700)", borderRadius: 2, color: "var(--zinc-300)", fontFamily: "Rajdhani,sans-serif", fontSize: 13, textDecoration: "none" }}>
+                    <svg style={{ width: 16, height: 16, color: "var(--red)", flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                    </svg>
+                    Ouvrir le document PDF →
+                  </a>
+                </div>
+              )}
+
+              <div style={{ marginBottom: 16, padding: "12px 14px", background: "rgba(224,48,48,0.03)", border: "1px solid rgba(224,48,48,0.15)", borderRadius: 2 }}>
+                <div style={{ fontFamily: "Orbitron,monospace", fontSize: 8, letterSpacing: 2, textTransform: "uppercase", color: "var(--red)", marginBottom: 8 }}>Aperçu de votre signature</div>
+                <div style={{ fontFamily: "'Dancing Script',cursive", fontSize: 22, color: "#fff" }}>
+                  {prenom || "Prénom"} {nom || "Nom"}
+                </div>
+                <div style={{ fontFamily: "Rajdhani,sans-serif", fontSize: 11, color: "var(--zinc-400)", marginTop: 4 }}>
+                  {new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+                <FieldGroup label="Prénom" value={prenom} onChange={setPrenom} placeholder="Jean" />
+                <FieldGroup label="Nom" value={nom} onChange={setNom} placeholder="Dupont" />
+              </div>
+              <div style={{ marginBottom: 20 }}>
+                <FieldGroup label="Votre email" value={email} onChange={setEmail} placeholder="vous@exemple.com" type="email" />
+              </div>
+
+              {errorMsg && (
+                <div style={{ background: "rgba(224,48,48,0.08)", border: "1px solid rgba(224,48,48,0.3)", borderRadius: 2, padding: "8px 12px", marginBottom: 12, fontSize: 12, color: "#ff6b6b", fontFamily: "Rajdhani,sans-serif" }}>
+                  ✕ {errorMsg}
+                </div>
+              )}
+
+              <button onClick={handleSign} disabled={pageStatus === "signing"}
+                style={{ width: "100%", padding: "14px 20px", background: pageStatus === "signing" ? "var(--red-dark)" : "var(--red)", border: "none", borderRadius: 2, color: "#fff", fontFamily: "Orbitron,monospace", fontSize: 12, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase", cursor: pageStatus === "signing" ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+              >
+                {pageStatus === "signing" ? (
+                  <><span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />SIGNATURE EN COURS...</>
+                ) : "✍ SIGNER LE DOCUMENT"}
+              </button>
+              <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes dotPulse{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
+            </>
+          )}
+
+          {pageStatus === "success" && (
+            <div style={{ textAlign: "center" }}>
+              <svg style={{ width: 56, height: 56, margin: "0 auto 16px", display: "block" }} viewBox="0 0 56 56">
+                <circle className="check-circle" cx="28" cy="28" r="26" />
+                <polyline className="check-tick" points="16,28 24,36 40,20" />
+              </svg>
+              <div style={{ fontFamily: "Orbitron,monospace", fontSize: 14, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase", color: "#22C55E", textShadow: "0 0 20px rgba(34,197,94,0.4)", marginBottom: 8 }}>Document Signé</div>
+              <div style={{ fontFamily: "Rajdhani,sans-serif", fontSize: 13, color: "var(--zinc-400)", marginBottom: 16 }}>Téléchargement démarré · Email envoyé</div>
+              {signedUrl && (
+                <a href={signedUrl} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", padding: "10px 20px", background: "var(--red)", borderRadius: 2, color: "#fff", fontFamily: "Orbitron,monospace", fontSize: 10, letterSpacing: 2, textDecoration: "none" }}>
+                  ↓ RETÉLÉCHARGER
+                </a>
+              )}
+            </div>
+          )}
+
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", justifyContent: "center" }}>
+            <div style={{ fontFamily: "Rajdhani,sans-serif", fontSize: 10, color: "var(--zinc-400)" }}>Signature électronique simple — valeur probante</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LoadingState() {
+  return (
+    <div style={{ textAlign: "center", padding: "20px 0" }}>
+      <div style={{ width: 32, height: 32, border: "2px solid rgba(224,48,48,0.3)", borderTopColor: "var(--red)", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
+      <div style={{ fontFamily: "Rajdhani,sans-serif", fontSize: 13, color: "var(--zinc-400)" }}>Chargement du document...</div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+}
+
+function MessageState({ color, icon, title, sub }: { color: string; icon: string; title: string; sub: string }) {
+  return (
+    <div style={{ textAlign: "center", padding: "10px 0" }}>
+      <div style={{ fontSize: 32, marginBottom: 12, color }}>{icon}</div>
+      <div style={{ fontFamily: "Orbitron,monospace", fontSize: 13, fontWeight: 700, letterSpacing: 2, color, marginBottom: 8 }}>{title}</div>
+      <div style={{ fontFamily: "Rajdhani,sans-serif", fontSize: 13, color: "var(--zinc-400)" }}>{sub}</div>
+    </div>
+  );
+}
+
+function FieldGroup({ label, value, onChange, placeholder, type = "text" }: { label: string; value: string; onChange: (v: string) => void; placeholder: string; type?: string }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+      <div style={{ fontFamily: "Orbitron,monospace", fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "var(--zinc-400)" }}>{label}</div>
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+        style={{ background: "var(--zinc-800)", border: "1px solid var(--zinc-700)", borderRadius: 2, padding: "10px 12px", color: "#fff", fontFamily: "Rajdhani,sans-serif", fontSize: 14, fontWeight: 500, width: "100%", outline: "none" }}
+        onFocus={(e) => { e.target.style.borderColor = "var(--red)"; e.target.style.boxShadow = "0 0 0 1px rgba(224,48,48,0.2)"; }}
+        onBlur={(e) => { e.target.style.borderColor = "var(--zinc-700)"; e.target.style.boxShadow = "none"; }}
+      />
+    </div>
+  );
+}
