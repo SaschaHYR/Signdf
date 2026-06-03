@@ -1,0 +1,150 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --red: #E03030;
+  --red-dark: #A01818;
+  --red-glow: rgba(224, 48, 48, 0.4);
+  --bg: #0A0A0A;
+  --zinc-900: #18181B;
+  --zinc-800: #27272A;
+  --zinc-700: #3F3F46;
+  --zinc-400: #A1A1AA;
+  --zinc-300: #D4D4D8;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Rajdhani', sans-serif;
+  background: var(--bg);
+  min-height: 100vh;
+}
+
+.bg-grid {
+  position: fixed; inset: 0; z-index: 0;
+  background-image:
+    linear-gradient(rgba(224,48,48,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(224,48,48,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  animation: gridDrift 20s linear infinite;
+  pointer-events: none;
+}
+@keyframes gridDrift {
+  0%   { background-position: 0 0; }
+  100% { background-position: 40px 40px; }
+}
+
+.scanlines {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent, transparent 2px,
+    rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px
+  );
+  animation: scanMove 8s linear infinite;
+}
+@keyframes scanMove {
+  0%   { background-position: 0 0; }
+  100% { background-position: 0 100px; }
+}
+
+.corner {
+  position: fixed; width: 80px; height: 80px; z-index: 2; pointer-events: none;
+}
+.corner::before, .corner::after {
+  content: ''; position: absolute; background: var(--red);
+}
+.corner::before { width: 2px; height: 40px; }
+.corner::after  { width: 40px; height: 2px; }
+.corner-tl { top: 24px; left: 24px; }
+.corner-tl::before { top: 0; left: 0; }
+.corner-tl::after  { top: 0; left: 0; }
+.corner-tr { top: 24px; right: 24px; transform: scaleX(-1); }
+.corner-tr::before { top: 0; left: 0; }
+.corner-tr::after  { top: 0; left: 0; }
+.corner-bl { bottom: 24px; left: 24px; transform: scaleY(-1); }
+.corner-bl::before { top: 0; left: 0; }
+.corner-bl::after  { top: 0; left: 0; }
+.corner-br { bottom: 24px; right: 24px; transform: scale(-1); }
+.corner-br::before { top: 0; left: 0; }
+.corner-br::after  { top: 0; left: 0; }
+
+.particles { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+.particle {
+  position: absolute;
+  background: var(--red); border-radius: 50%;
+  animation: floatUp linear infinite;
+  opacity: 0;
+}
+@keyframes floatUp {
+  0%   { transform: translateY(0) translateX(0); opacity: 0; }
+  10%  { opacity: 0.6; }
+  90%  { opacity: 0.2; }
+  100% { transform: translateY(-100vh) translateX(var(--drift)); opacity: 0; }
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(24px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes badgeIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes titleIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeSlide {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes iconFloat {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-4px); }
+}
+@keyframes dotPulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px var(--red); }
+  50%       { opacity: 0.4; box-shadow: 0 0 2px var(--red); }
+}
+@keyframes btnShimmer {
+  0%   { left: -100%; }
+  50%  { left: 150%; }
+  100% { left: 150%; }
+}
+@keyframes drawCircle { to { stroke-dashoffset: 0; } }
+@keyframes drawTick   { to { stroke-dashoffset: 0; } }
+
+.animate-card-in    { animation: cardIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-badge-in   { animation: badgeIn 0.5s 0.2s both; }
+.animate-title-in   { animation: titleIn 0.5s 0.3s both; }
+.animate-subtitle-in{ animation: titleIn 0.5s 0.4s both; }
+.animate-drop-in    { animation: fadeSlide 0.5s 0.5s both; }
+.animate-fields-in  { animation: fadeSlide 0.5s 0.6s both; }
+.animate-divider-in { animation: fadeSlide 0.5s 0.65s both; }
+.animate-btn-in     { animation: fadeSlide 0.5s 0.7s both; }
+.animate-footer-in  { animation: fadeSlide 0.5s 0.8s both; }
+
+.drop-icon-float { animation: iconFloat 3s ease-in-out infinite; }
+.badge-dot-pulse { animation: dotPulse 2s ease-in-out infinite; }
+
+.btn-shimmer::after {
+  content: '';
+  position: absolute; top: 0; left: -100%; width: 50%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  animation: btnShimmer 3s ease-in-out infinite;
+}
+
+.check-circle {
+  stroke: #22C55E; fill: none; stroke-width: 2;
+  stroke-dasharray: 200; stroke-dashoffset: 200;
+  animation: drawCircle 0.6s ease forwards;
+}
+.check-tick {
+  stroke: #22C55E; fill: none; stroke-width: 2.5;
+  stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 60; stroke-dashoffset: 60;
+  animation: drawTick 0.4s 0.5s ease forwards;
+}
