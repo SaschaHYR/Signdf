@@ -1,12 +1,21 @@
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, rgb, PDFFont } from "pdf-lib";
 
 export interface SignatureOptions {
   prenom: string;
   nom: string;
 }
 
-export async function signPdf(file: File, options: SignatureOptions): Promise<Uint8Array> {
-  const arrayBuffer = await file.arrayBuffer();
+async function loadDancingScriptFont(doc: PDFDocument): Promise<PDFFont> {
+  const response = await fetch("/fonts/DancingScript-Bold.ttf");
+  const fontBytes = await response.arrayBuffer();
+  return doc.embedFont(fontBytes);
+}
+
+export async function signPdf(
+  source: File | ArrayBuffer,
+  options: SignatureOptions
+): Promise<Uint8Array> {
+  const arrayBuffer = source instanceof File ? await source.arrayBuffer() : source;
 
   let doc: PDFDocument;
   try {
@@ -15,8 +24,7 @@ export async function signPdf(file: File, options: SignatureOptions): Promise<Ui
     throw new Error("Ce PDF est protégé ou corrompu et ne peut pas être signé.");
   }
 
-  const helvetica = await doc.embedFont(StandardFonts.Helvetica);
-  const helveticaBold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const dancingScript = await loadDancingScriptFont(doc);
 
   const pages = doc.getPages();
   const lastPage = pages[pages.length - 1];
@@ -27,82 +35,48 @@ export async function signPdf(file: File, options: SignatureOptions): Promise<Ui
   const sigId = btoa(fullName + timestamp).replace(/[^A-Z0-9]/gi, "").toUpperCase().slice(0, 8);
   const dateStr = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
 
-  const blockW = 240;
-  const blockH = 105;
+  const blockW = 200;
+  const blockH = 72;
   const margin = 20;
   const x = width - blockW - margin;
   const y = margin;
 
-  // border
   lastPage.drawRectangle({
-    x,
-    y,
-    width: blockW,
-    height: blockH,
-    borderColor: rgb(0.102, 0.153, 0.267), // navy
+    x, y, width: blockW, height: blockH,
+    borderColor: rgb(0.102, 0.153, 0.267),
     borderWidth: 1,
     color: rgb(0.98, 0.98, 1),
   });
 
-  // label
   lastPage.drawText("Signé électroniquement par", {
-    x: x + 8,
-    y: y + blockH - 16,
-    size: 7,
-    font: helvetica,
-    color: rgb(0.5, 0.5, 0.5),
+    x: x + 8, y: y + blockH - 14,
+    size: 7, font: dancingScript, color: rgb(0.5, 0.5, 0.5),
   });
 
-  // name
   lastPage.drawText(fullName, {
-    x: x + 8,
-    y: y + blockH - 32,
-    size: 13,
-    font: helveticaBold,
-    color: rgb(0.102, 0.153, 0.267),
+    x: x + 8, y: y + blockH - 30,
+    size: 16, font: dancingScript, color: rgb(0.102, 0.153, 0.267),
   });
 
-  // date
   lastPage.drawText(`Le ${dateStr}`, {
-    x: x + 8,
-    y: y + blockH - 48,
-    size: 8,
-    font: helvetica,
-    color: rgb(0.3, 0.3, 0.3),
+    x: x + 8, y: y + blockH - 44,
+    size: 7, font: dancingScript, color: rgb(0.3, 0.3, 0.3),
   });
 
-  // sig ID
   lastPage.drawText(`SIG ID · ${sigId}`, {
-    x: x + 8,
-    y: y + blockH - 62,
-    size: 7,
-    font: helvetica,
-    color: rgb(0.4, 0.4, 0.4),
+    x: x + 8, y: y + blockH - 56,
+    size: 7, font: dancingScript, color: rgb(0.4, 0.4, 0.4),
   });
 
-  // separator line
   lastPage.drawLine({
-    start: { x: x + 8, y: y + blockH - 70 },
-    end:   { x: x + blockW - 8, y: y + blockH - 70 },
-    thickness: 0.5,
-    color: rgb(0.8, 0.8, 0.8),
+    start: { x: x + 8, y: y + blockH - 62 },
+    end:   { x: x + blockW - 8, y: y + blockH - 62 },
+    thickness: 0.5, color: rgb(0.8, 0.8, 0.8),
   });
 
-  // disclaimer
   lastPage.drawText("Signature électronique simple — valeur probante", {
-    x: x + 8,
-    y: y + blockH - 82,
-    size: 6,
-    font: helvetica,
-    color: rgb(0.6, 0.6, 0.6),
-  });
-
-  lastPage.drawText("Document traité localement — aucune donnée transmise", {
-    x: x + 8,
-    y: y + blockH - 92,
-    size: 6,
-    font: helvetica,
-    color: rgb(0.6, 0.6, 0.6),
+    x: x + 8, y: y + blockH - 70,
+    size: 6, font: dancingScript, color: rgb(0.6, 0.6, 0.6),
   });
 
   return doc.save();
