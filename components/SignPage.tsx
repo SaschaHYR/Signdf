@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { getSignatureDoc, getOriginalPdfUrl, uploadSignedPdf, markAsSigned, SignatureDoc } from "@/lib/uploadPdf";
-import { signPdf, downloadBytes } from "@/lib/signPdf";
+import { signPdf, downloadBytes, PlacementCoord } from "@/lib/signPdf";
 import { sendSignatureEmail } from "@/lib/emailjs";
 
-type PageStatus = "loading" | "ready" | "already-signed" | "invalid" | "signing" | "success" | "error";
+const PdfPlacementEditor = lazy(() => import("./PdfPlacementEditor"));
+
+type PageStatus = "loading" | "ready" | "placing" | "already-signed" | "invalid" | "signing" | "success" | "error";
 
 export default function SignPage({ token }: { token: string }) {
   const [pageStatus, setPageStatus] = useState<PageStatus>("loading");
@@ -16,6 +18,9 @@ export default function SignPage({ token }: { token: string }) {
   const [email, setEmail] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [signedUrl, setSignedUrl] = useState("");
+  const [withParaphe, setWithParaphe] = useState(false);
+  const [sigPlacement, setSigPlacement] = useState<PlacementCoord | undefined>();
+  const [parPlacement, setParPlacement] = useState<PlacementCoord | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -39,10 +44,28 @@ export default function SignPage({ token }: { token: string }) {
     load();
   }, [token]);
 
-  const handleSign = async () => {
+  const handleOpenPlacement = () => {
+    if (!prenom.trim() || !nom.trim()) { setErrorMsg("Prénom et nom requis avant de placer la signature."); return; }
+    if (!email.trim() || !email.includes("@")) { setErrorMsg("Email valide requis avant de placer la signature."); return; }
+    setErrorMsg("");
+    setPageStatus("placing");
+  };
+
+  const handlePlacementConfirm = (sig: PlacementCoord, par: PlacementCoord | null) => {
+    setSigPlacement(sig);
+    setParPlacement(par);
+    setPageStatus("ready");
+    // immediately sign after placement
+    handleSign(sig, par);
+  };
+
+  const handleSign = async (sigPlace?: PlacementCoord, parPlace?: PlacementCoord | null) => {
     if (!prenom.trim() || !nom.trim()) { setErrorMsg("Prénom et nom requis."); return; }
     if (!email.trim() || !email.includes("@")) { setErrorMsg("Email valide requis."); return; }
     if (!sigDoc) return;
+
+    const placement = sigPlace ?? sigPlacement;
+    const paraphe = parPlace !== undefined ? parPlace : parPlacement;
 
     setPageStatus("signing");
     setErrorMsg("");
@@ -50,7 +73,12 @@ export default function SignPage({ token }: { token: string }) {
     try {
       const response = await fetch(pdfUrl);
       const arrayBuffer = await response.arrayBuffer();
-      const bytes = await signPdf(arrayBuffer, { prenom: prenom.trim(), nom: nom.trim() });
+      const bytes = await signPdf(arrayBuffer, {
+        prenom: prenom.trim(),
+        nom: nom.trim(),
+        placement: placement ?? undefined,
+        paraphe: paraphe ?? undefined,
+      });
       const signedFileUrl = await uploadSignedPdf(bytes, token);
       await markAsSigned(token, email.trim(), signedFileUrl);
 
@@ -72,6 +100,20 @@ export default function SignPage({ token }: { token: string }) {
       setPageStatus("ready");
     }
   };
+
+  if (pageStatus === "placing") {
+    return (
+      <Suspense fallback={null}>
+        <PdfPlacementEditor
+          pdfUrl={pdfUrl}
+          signerName={`${prenom.trim()} ${nom.trim()}`}
+          withParaphe={withParaphe}
+          onConfirm={handlePlacementConfirm}
+          onCancel={() => setPageStatus("ready")}
+        />
+      </Suspense>
+    );
+  }
 
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden" style={{ background: "var(--bg)" }}>
@@ -135,6 +177,14 @@ export default function SignPage({ token }: { token: string }) {
                 <div style={{ fontFamily: "'Dancing Script',cursive", fontSize: 22, color: "#fff" }}>
                   {prenom || "Prénom"} {nom || "Nom"}
                 </div>
+                {withParaphe && (
+                  <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ fontFamily: "Orbitron,monospace", fontSize: 8, letterSpacing: 2, textTransform: "uppercase", color: "#22C55E" }}>Paraphe :</div>
+                    <div style={{ fontFamily: "Whisper,cursive", fontSize: 20, color: "#fff" }}>
+                      {(prenom[0] ?? "") + (nom[0] ?? "")}
+                    </div>
+                  </div>
+                )}
                 <div style={{ fontFamily: "Rajdhani,sans-serif", fontSize: 11, color: "var(--zinc-400)", marginTop: 4 }}>
                   {new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
                 </div>
@@ -144,8 +194,23 @@ export default function SignPage({ token }: { token: string }) {
                 <FieldGroup label="Prénom" value={prenom} onChange={setPrenom} placeholder="Jean" />
                 <FieldGroup label="Nom" value={nom} onChange={setNom} placeholder="Dupont" />
               </div>
-              <div style={{ marginBottom: 20 }}>
+              <div style={{ marginBottom: 16 }}>
                 <FieldGroup label="Votre email" value={email} onChange={setEmail} placeholder="vous@exemple.com" type="email" />
+              </div>
+
+              {/* Paraphe toggle */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+                  <div
+                    onClick={() => setWithParaphe(p => !p)}
+                    style={{ width: 36, height: 20, borderRadius: 10, background: withParaphe ? "#22C55E" : "var(--zinc-700)", position: "relative", transition: "background 0.2s", flexShrink: 0, cursor: "pointer" }}
+                  >
+                    <div style={{ position: "absolute", top: 3, left: withParaphe ? 18 : 3, width: 14, height: 14, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
+                  </div>
+                  <span style={{ fontFamily: "Rajdhani,sans-serif", fontSize: 13, color: "var(--zinc-300)" }}>
+                    Ajouter un paraphe (initiales)
+                  </span>
+                </label>
               </div>
 
               {errorMsg && (
@@ -154,13 +219,27 @@ export default function SignPage({ token }: { token: string }) {
                 </div>
               )}
 
-              <button onClick={handleSign} disabled={pageStatus === "signing"}
-                style={{ width: "100%", padding: "14px 20px", background: pageStatus === "signing" ? "var(--red-dark)" : "var(--red)", border: "none", borderRadius: 2, color: "#fff", fontFamily: "Orbitron,monospace", fontSize: 12, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase", cursor: pageStatus === "signing" ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
-              >
-                {pageStatus === "signing" ? (
-                  <><span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />SIGNATURE EN COURS...</>
-                ) : "✍ SIGNER LE DOCUMENT"}
-              </button>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 0 }}>
+                <button
+                  onClick={handleOpenPlacement}
+                  disabled={pageStatus === "signing"}
+                  style={{ padding: "13px 10px", background: "transparent", border: "1px solid rgba(224,48,48,0.4)", borderRadius: 2, color: "var(--red)", fontFamily: "Orbitron,monospace", fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", cursor: pageStatus === "signing" ? "not-allowed" : "pointer", opacity: pageStatus === "signing" ? 0.5 : 1 }}
+                >
+                  ✦ PLACER
+                </button>
+                <button
+                  onClick={() => handleSign()}
+                  disabled={pageStatus === "signing"}
+                  style={{ padding: "13px 10px", background: pageStatus === "signing" ? "var(--red-dark)" : "var(--red)", border: "none", borderRadius: 2, color: "#fff", fontFamily: "Orbitron,monospace", fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", cursor: pageStatus === "signing" ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+                >
+                  {pageStatus === "signing" ? (
+                    <><span style={{ display: "inline-block", width: 10, height: 10, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />EN COURS...</>
+                  ) : "✍ SIGNER"}
+                </button>
+              </div>
+              <div style={{ marginTop: 6, textAlign: "center", fontFamily: "Rajdhani,sans-serif", fontSize: 10, color: "var(--zinc-500)" }}>
+                SIGNER place la signature en bas à droite de la dernière page · PLACER permet de choisir la position
+              </div>
               <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes dotPulse{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
             </>
           )}
