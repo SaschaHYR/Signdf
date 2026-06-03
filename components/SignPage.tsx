@@ -24,11 +24,11 @@ export default function SignPage({ token }: { token: string }) {
         if (!docData) { setPageStatus("invalid"); return; }
         if (docData.status === "signed") {
           setSigDoc(docData);
-          setSignedUrl(docData.signedFileUrl ?? "");
+          setSignedUrl(docData.signed_file_url ?? "");
           setPageStatus("already-signed");
           return;
         }
-        const url = await getOriginalPdfUrl(token);
+        const url = getOriginalPdfUrl(token);
         setSigDoc(docData);
         setPdfUrl(url);
         setPageStatus("ready");
@@ -55,11 +55,11 @@ export default function SignPage({ token }: { token: string }) {
       await markAsSigned(token, email.trim(), signedFileUrl);
 
       const fullName = `${prenom.trim()} ${nom.trim()}`;
-      const fileName = sigDoc.fileName;
+      const fileName = sigDoc.file_name;
 
       try {
         await sendSignatureEmail({ toEmail: email.trim(), toName: fullName, signataireName: fullName, fileName, signedFileUrl, role: "signataire" });
-        await sendSignatureEmail({ toEmail: sigDoc.emailExpediteur, toName: "l'expéditeur", signataireName: fullName, fileName, signedFileUrl, role: "expediteur" });
+        await sendSignatureEmail({ toEmail: sigDoc.email_expediteur, toName: "l'expéditeur", signataireName: fullName, fileName, signedFileUrl, role: "expediteur" });
       } catch (emailErr) {
         console.error("Email non envoyé:", emailErr);
       }
@@ -97,7 +97,7 @@ export default function SignPage({ token }: { token: string }) {
             </div>
             {sigDoc && (
               <div style={{ fontFamily: "Rajdhani,sans-serif", fontSize: 12, color: "var(--zinc-400)", marginTop: 6 }}>
-                Document : <span style={{ color: "var(--zinc-300)" }}>{sigDoc.fileName}</span>
+                Document : <span style={{ color: "var(--zinc-300)" }}>{sigDoc.file_name}</span>
               </div>
             )}
           </div>

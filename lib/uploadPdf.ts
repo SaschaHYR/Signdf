@@ -1,33 +1,21 @@
-import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "./firebase";
+import { getSupabase } from "./supabase";
 
 export interface SignatureDoc {
   token: string;
-  emailExpediteur: string;
-  fileName: string;
+  email_expediteur: string;
+  file_name: string;
   status: "pending" | "signed";
-  createdAt: unknown;
-  emailSignataire?: string;
-  signedAt?: unknown;
-  signedFileUrl?: string;
-}
-
-const WORKER_URL = process.env.NEXT_PUBLIC_CF_WORKER_URL!;
-const R2_PUBLIC_URL = process.env.NEXT_PUBLIC_CF_R2_PUBLIC_URL!;
-
-async function uploadToR2(key: string, data: File | Blob): Promise<string> {
-  const res = await fetch(`${WORKER_URL}/${key}`, {
-    method: "PUT",
-    body: data,
-    headers: { "Content-Type": "application/pdf" },
-  });
-  if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
-  const json = await res.json() as { url: string };
-  return json.url;
+  created_at: string;
+  email_signataire?: string;
+  signed_at?: string;
+  signed_file_url?: string;
 }
 
 export async function uploadOriginalPdf(file: File, token: string): Promise<void> {
-  await uploadToR2(`pdfs/${token}/original.pdf`, file);
+  const { error } = await getSupabase().storage
+    .from("pdfs")
+    .upload(`${token}/original.pdf`, file, { contentType: "application/pdf", upsert: true });
+  if (error) throw new Error(error.message);
 }
 
 export async function createSignatureDoc(
@@ -35,28 +23,42 @@ export async function createSignatureDoc(
   emailExpediteur: string,
   fileName: string
 ): Promise<void> {
-  await setDoc(doc(db, "signatures", token), {
+  const { error } = await getSupabase().from("signatures").insert({
     token,
-    emailExpediteur,
-    fileName,
+    email_expediteur: emailExpediteur,
+    file_name: fileName,
     status: "pending",
-    createdAt: serverTimestamp(),
   });
+  if (error) throw new Error(error.message);
 }
 
 export async function getSignatureDoc(token: string): Promise<SignatureDoc | null> {
-  const snap = await getDoc(doc(db, "signatures", token));
-  if (!snap.exists()) return null;
-  return snap.data() as SignatureDoc;
+  const { data, error } = await getSupabase()
+    .from("signatures")
+    .select("*")
+    .eq("token", token)
+    .single();
+  if (error || !data) return null;
+  return data as SignatureDoc;
 }
 
 export function getOriginalPdfUrl(token: string): string {
-  return `${R2_PUBLIC_URL}/pdfs/${token}/original.pdf`;
+  const { data } = getSupabase().storage
+    .from("pdfs")
+    .getPublicUrl(`${token}/original.pdf`);
+  return data.publicUrl;
 }
 
 export async function uploadSignedPdf(bytes: Uint8Array, token: string): Promise<string> {
   const blob = new Blob([bytes as unknown as BlobPart], { type: "application/pdf" });
-  return uploadToR2(`pdfs/${token}/signed.pdf`, blob);
+  const { error } = await getSupabase().storage
+    .from("pdfs")
+    .upload(`${token}/signed.pdf`, blob, { contentType: "application/pdf", upsert: true });
+  if (error) throw new Error(error.message);
+  const { data } = getSupabase().storage
+    .from("pdfs")
+    .getPublicUrl(`${token}/signed.pdf`);
+  return data.publicUrl;
 }
 
 export async function markAsSigned(
@@ -64,10 +66,9 @@ export async function markAsSigned(
   emailSignataire: string,
   signedFileUrl: string
 ): Promise<void> {
-  await updateDoc(doc(db, "signatures", token), {
-    status: "signed",
-    emailSignataire,
-    signedAt: serverTimestamp(),
-    signedFileUrl,
-  });
+  const { error } = await getSupabase()
+    .from("signatures")
+    .update({ status: "signed", email_signataire: emailSignataire, signed_at: new Date().toISOString(), signed_file_url: signedFileUrl })
+    .eq("token", token);
+  if (error) throw new Error(error.message);
 }
