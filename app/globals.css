@@ -36,6 +36,12 @@ body {
   100% { background-position: 40px 40px; }
 }
 
+.pixel-red {
+  background: radial-gradient(circle, #E03030 0%, rgba(224,48,48,0.6) 60%, transparent 100%);
+  border-radius: 2px;
+  box-shadow: 0 0 6px rgba(224,48,48,0.8);
+}
+
 .scanlines {
   position: fixed; inset: 0; z-index: 1; pointer-events: none;
   background: repeating-linear-gradient(

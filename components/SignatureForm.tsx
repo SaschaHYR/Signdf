@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { uploadOriginalPdf, createSignatureDoc } from "@/lib/uploadPdf";
+import { AnimatedBackground } from "@/components/ui/animated-background";
 import { getSupabase } from "@/lib/supabase";
 import { AnimateNumber } from "@/components/ui/animated-blur-number";
 
@@ -99,8 +100,7 @@ export default function SignatureForm() {
 
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden" style={{ background: "var(--bg)" }}>
-      <div className="bg-grid" />
-      <div className="scanlines" />
+      <AnimatedBackground />
       <div className="corner corner-tl" />
       <div className="corner corner-tr" />
       <div className="corner corner-bl" />
@@ -121,7 +121,7 @@ export default function SignatureForm() {
               e-SIGN<span style={{ color: "var(--red)" }}>.</span>PDF
             </div>
             <div className="animate-subtitle-in" style={{ fontFamily: "Rajdhani,sans-serif", fontSize: 13, color: "var(--zinc-400)", letterSpacing: 1.5, textTransform: "uppercase", marginTop: 6 }}>
-              Signature électronique · Traitement local
+              Signature électronique avancée
             </div>
 
             {/* Live signature counter */}

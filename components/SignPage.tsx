@@ -3,6 +3,7 @@
 import { useEffect, useState, lazy, Suspense } from "react";
 import { getSignatureDoc, getOriginalPdfUrl, uploadSignedPdf, markAsSigned, SignatureDoc } from "@/lib/uploadPdf";
 import { signPdf, downloadBytes, PlacementCoord } from "@/lib/signPdf";
+import { AnimatedBackground } from "@/components/ui/animated-background";
 import { sendSignatureEmail } from "@/lib/emailjs";
 
 const PdfPlacementEditor = lazy(() => import("./PdfPlacementEditor"));
@@ -124,8 +125,7 @@ export default function SignPage({ token }: { token: string }) {
 
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden" style={{ background: "var(--bg)" }}>
-      <div className="bg-grid" />
-      <div className="scanlines" />
+      <AnimatedBackground />
       <div className="corner corner-tl" />
       <div className="corner corner-tr" />
       <div className="corner corner-bl" />

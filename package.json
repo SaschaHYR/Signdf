@@ -12,16 +12,19 @@
     "@emailjs/browser": "^4.4.1",
     "@pdf-lib/fontkit": "^1.1.1",
     "@supabase/supabase-js": "^2.107.0",
+    "framer-motion": "^12.40.0",
     "next": "14.2.35",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.0.227",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/uuid": "^10.0.0",
     "eslint": "^8",
     "eslint-config-next": "14.2.35",
     "postcss": "^8",
