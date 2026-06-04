@@ -95,7 +95,9 @@ export default function SignPage({ token }: { token: string }) {
 
       try {
         await sendSignatureEmail({ toEmail: email.trim(), toName: fullName, signataireName: fullName, fileName, signedFileUrl, role: "signataire" });
-        await sendSignatureEmail({ toEmail: sigDoc.email_expediteur, toName: "l'expéditeur", signataireName: fullName, fileName, signedFileUrl, role: "expediteur" });
+        if (sigDoc.email_expediteur.toLowerCase() !== email.trim().toLowerCase()) {
+          await sendSignatureEmail({ toEmail: sigDoc.email_expediteur, toName: "l'expéditeur", signataireName: fullName, fileName, signedFileUrl, role: "expediteur" });
+        }
       } catch (emailErr) {
         console.error("Email non envoyé:", emailErr);
       }
