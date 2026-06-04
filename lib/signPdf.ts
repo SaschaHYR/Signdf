@@ -16,7 +16,9 @@ export interface SignatureOptions {
 
 async function loadFont(doc: PDFDocument, path: string): Promise<PDFFont> {
   const response = await fetch(path);
+  if (!response.ok) throw new Error(`Font fetch failed: ${path} (${response.status})`);
   const fontBytes = await response.arrayBuffer();
+  if (fontBytes.byteLength < 100) throw new Error(`Font data invalid: ${path} (${fontBytes.byteLength} bytes)`);
   return doc.embedFont(fontBytes);
 }
 
@@ -41,7 +43,7 @@ export async function signPdf(
 
   doc.registerFontkit(fontkit);
   const dancingScript = await loadFont(doc, "/fonts/DancingScript-Bold.ttf");
-  const whisper = await loadFont(doc, "/fonts/Whisper-Regular.ttf");
+  const whisper = await loadFont(doc, "/fonts/Caveat-Bold.ttf");
 
   const pages = doc.getPages();
   const fullName = `${options.prenom} ${options.nom}`;

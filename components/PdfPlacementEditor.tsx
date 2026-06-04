@@ -199,7 +199,7 @@ export default function PdfPlacementEditor({ pdfUrl, signerName, withParaphe, on
                     label="PARAPHE"
                     onMouseDown={(e) => onMouseDown(e, "paraphe")}
                   >
-                    <div style={{ fontFamily: "Whisper,cursive", fontSize: "clamp(10px, 2.5vw, 18px)", color: "#1a2744" }}>{initiales}</div>
+                    <div style={{ fontFamily: "Caveat,cursive", fontSize: "clamp(10px, 2.5vw, 18px)", color: "#1a2744" }}>{initiales}</div>
                   </DragBlock>
                 )}
               </div>

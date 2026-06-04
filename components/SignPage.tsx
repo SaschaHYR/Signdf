@@ -185,7 +185,7 @@ export default function SignPage({ token }: { token: string }) {
                 {withParaphe && (
                   <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ fontFamily: "Orbitron,monospace", fontSize: 8, letterSpacing: 2, textTransform: "uppercase", color: "#22C55E" }}>Paraphe :</div>
-                    <div style={{ fontFamily: "Whisper,cursive", fontSize: 20, color: "#fff" }}>
+                    <div style={{ fontFamily: "Caveat,cursive", fontSize: 20, color: "#fff" }}>
                       {(prenom[0] ?? "") + (nom[0] ?? "")}
                     </div>
                   </div>
