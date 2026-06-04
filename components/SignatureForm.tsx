@@ -161,8 +161,21 @@ export default function SignatureForm() {
             </>
           )}
 
-          <div className="animate-footer-in" style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ fontFamily: "Orbitron,monospace", fontSize: 8, letterSpacing: 2, textTransform: "uppercase", color: "var(--zinc-400)" }}>V<span style={{ color: "rgba(224,48,48,0.6)" }}>2.0</span> · FIREBASE + NEXT.JS</div>
+          {/* SEA compliance badge */}
+          <div style={{ marginTop: 16, padding: "10px 14px", background: "rgba(34,197,94,0.04)", border: "1px solid rgba(34,197,94,0.18)", borderRadius: 3, display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <div style={{ flexShrink: 0, marginTop: 1 }}>
+              <svg style={{ width: 14, height: 14, color: "#22C55E" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" /></svg>
+            </div>
+            <div>
+              <div style={{ fontFamily: "Orbitron,monospace", fontSize: 8, letterSpacing: 2, color: "#22C55E", textTransform: "uppercase", marginBottom: 4 }}>Habilité SEA · Signature Électronique Avancée</div>
+              <div style={{ fontFamily: "Rajdhani,sans-serif", fontSize: 11, color: "var(--zinc-400)", lineHeight: 1.5 }}>
+                Chaque signature embarque un identifiant unique de document, l&apos;horodatage certifié et l&apos;identité du signataire — conforme au règlement eIDAS (art. 26) pour la valeur probante des signatures avancées.
+              </div>
+            </div>
+          </div>
+
+          <div className="animate-footer-in" style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ fontFamily: "Orbitron,monospace", fontSize: 8, letterSpacing: 2, textTransform: "uppercase", color: "var(--zinc-400)" }}>SEA · eIDAS · <span style={{ color: "rgba(224,48,48,0.6)" }}>NEXT.JS</span></div>
             <div style={{ display: "flex", alignItems: "center", gap: 5, fontFamily: "Rajdhani,sans-serif", fontSize: 10, color: "var(--zinc-400)" }}>
               <svg style={{ width: 10, height: 10 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>
               PDF traité localement

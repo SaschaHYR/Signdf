@@ -1,5 +1,4 @@
-import { PDFDocument, rgb, PDFFont } from "pdf-lib";
-import fontkit from "@pdf-lib/fontkit";
+import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 
 export interface PlacementCoord {
   page: number;   // 0-indexed
@@ -10,16 +9,9 @@ export interface PlacementCoord {
 export interface SignatureOptions {
   prenom: string;
   nom: string;
+  token: string;
   placement?: PlacementCoord;
   paraphe?: PlacementCoord;
-}
-
-async function loadFont(doc: PDFDocument, path: string): Promise<PDFFont> {
-  const response = await fetch(path);
-  if (!response.ok) throw new Error(`Font fetch failed: ${path} (${response.status})`);
-  const fontBytes = await response.arrayBuffer();
-  if (fontBytes.byteLength < 100) throw new Error(`Font data invalid: ${path} (${fontBytes.byteLength} bytes)`);
-  return doc.embedFont(fontBytes);
 }
 
 export async function signPdf(
@@ -41,14 +33,12 @@ export async function signPdf(
     throw new Error(`PDF illisible : ${e instanceof Error ? e.message : "format inconnu"}`);
   }
 
-  doc.registerFontkit(fontkit);
-  const dancingScript = await loadFont(doc, "/fonts/DancingScript-Bold.ttf");
-  const whisper = await loadFont(doc, "/fonts/Caveat-Bold.ttf");
+  const fontItalic = await doc.embedFont(StandardFonts.TimesRomanItalic);
+  const fontRoman  = await doc.embedFont(StandardFonts.TimesRoman);
+  const fontHelv   = await doc.embedFont(StandardFonts.Helvetica);
 
   const pages = doc.getPages();
   const fullName = `${options.prenom} ${options.nom}`;
-  const timestamp = Date.now();
-  const sigId = btoa(fullName + timestamp).replace(/[^A-Z0-9]/gi, "").toUpperCase().slice(0, 8);
   const dateStr = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
 
   // Signature block
@@ -58,8 +48,8 @@ export async function signPdf(
     const page = pages[pageIdx];
     const { width, height } = page.getSize();
 
-    const blockW = 200;
-    const blockH = 72;
+    const blockW = 210;
+    const blockH = 78;
     const margin = 20;
 
     let x: number, y: number;
@@ -71,42 +61,56 @@ export async function signPdf(
       y = margin;
     }
 
+    // Background + border
     page.drawRectangle({
       x, y, width: blockW, height: blockH,
       borderColor: rgb(0.102, 0.153, 0.267),
       borderWidth: 1,
-      color: rgb(0.98, 0.98, 1),
+      color: rgb(0.97, 0.97, 1),
     });
 
-    page.drawText("Signé électroniquement par", {
-      x: x + 8, y: y + blockH - 14,
-      size: 7, font: dancingScript, color: rgb(0.5, 0.5, 0.5),
-    });
-
-    page.drawText(fullName, {
-      x: x + 8, y: y + blockH - 30,
-      size: 16, font: dancingScript, color: rgb(0.102, 0.153, 0.267),
-    });
-
-    page.drawText(`Le ${dateStr}`, {
-      x: x + 8, y: y + blockH - 44,
-      size: 7, font: dancingScript, color: rgb(0.3, 0.3, 0.3),
-    });
-
-    page.drawText(`SIG ID · ${sigId}`, {
-      x: x + 8, y: y + blockH - 56,
-      size: 7, font: dancingScript, color: rgb(0.4, 0.4, 0.4),
-    });
-
+    // Top accent line
     page.drawLine({
-      start: { x: x + 8, y: y + blockH - 62 },
-      end:   { x: x + blockW - 8, y: y + blockH - 62 },
-      thickness: 0.5, color: rgb(0.8, 0.8, 0.8),
+      start: { x, y: y + blockH },
+      end:   { x: x + blockW, y: y + blockH },
+      thickness: 2, color: rgb(0.878, 0.188, 0.188),
     });
 
-    page.drawText("Signature électronique simple — valeur probante", {
+    // Label
+    page.drawText("SIGNÉ ÉLECTRONIQUEMENT", {
+      x: x + 8, y: y + blockH - 12,
+      size: 6, font: fontHelv, color: rgb(0.878, 0.188, 0.188),
+    });
+
+    // Name (italic, prominent)
+    page.drawText(fullName, {
+      x: x + 8, y: y + blockH - 28,
+      size: 15, font: fontItalic, color: rgb(0.08, 0.12, 0.22),
+    });
+
+    // Date
+    page.drawText(`Le ${dateStr}`, {
+      x: x + 8, y: y + blockH - 43,
+      size: 7, font: fontRoman, color: rgb(0.3, 0.3, 0.3),
+    });
+
+    // Divider
+    page.drawLine({
+      start: { x: x + 8, y: y + blockH - 50 },
+      end:   { x: x + blockW - 8, y: y + blockH - 50 },
+      thickness: 0.4, color: rgb(0.75, 0.75, 0.85),
+    });
+
+    // Token ID (for SEA traceability)
+    page.drawText(`ID : ${options.token}`, {
+      x: x + 8, y: y + blockH - 60,
+      size: 5.5, font: fontHelv, color: rgb(0.4, 0.4, 0.5),
+    });
+
+    // SEA mention
+    page.drawText("Signature Électronique Avancée — valeur probante conforme eIDAS", {
       x: x + 8, y: y + blockH - 70,
-      size: 6, font: dancingScript, color: rgb(0.6, 0.6, 0.6),
+      size: 5, font: fontHelv, color: rgb(0.55, 0.55, 0.65),
     });
   }
 
@@ -117,8 +121,8 @@ export async function signPdf(
     const page = pages[pageIdx];
     const { width, height } = page.getSize();
 
-    const blockW = 56;
-    const blockH = 40;
+    const blockW = 60;
+    const blockH = 44;
 
     const x = Math.min(ph.xRatio * width, width - blockW);
     const y = Math.max((1 - ph.yRatio) * height - blockH, 0);
@@ -129,17 +133,23 @@ export async function signPdf(
       x, y, width: blockW, height: blockH,
       borderColor: rgb(0.102, 0.153, 0.267),
       borderWidth: 0.8,
-      color: rgb(0.98, 0.98, 1),
+      color: rgb(0.97, 0.97, 1),
+    });
+
+    page.drawLine({
+      start: { x, y: y + blockH },
+      end:   { x: x + blockW, y: y + blockH },
+      thickness: 1.5, color: rgb(0.878, 0.188, 0.188),
     });
 
     page.drawText(initiales.toUpperCase(), {
-      x: x + 6, y: y + blockH - 28,
-      size: 18, font: whisper, color: rgb(0.102, 0.153, 0.267),
+      x: x + 10, y: y + blockH - 26,
+      size: 18, font: fontItalic, color: rgb(0.08, 0.12, 0.22),
     });
 
     page.drawText("Paraphe", {
-      x: x + 6, y: y + 5,
-      size: 5, font: dancingScript, color: rgb(0.6, 0.6, 0.6),
+      x: x + 8, y: y + 5,
+      size: 5, font: fontHelv, color: rgb(0.6, 0.6, 0.6),
     });
   }
 
