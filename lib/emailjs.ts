@@ -24,6 +24,7 @@ export async function sendSignatureEmail(params: EmailParams): Promise<void> {
       file_name: params.fileName,
       signed_file_url: params.signedFileUrl,
       role: params.role === "expediteur" ? "L'expéditeur" : "Le signataire",
+      date: new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris", dateStyle: "long", timeStyle: "short" }),
     },
     PUBLIC_KEY
   );
