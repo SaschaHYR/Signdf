@@ -2,8 +2,32 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { uploadOriginalPdf, createSignatureDoc } from "@/lib/uploadPdf";
+import { getSupabase } from "@/lib/supabase";
+import { AnimateNumber } from "@/components/ui/animated-blur-number";
 
 type Status = "idle" | "uploading" | "share" | "error";
+
+function useSignatureCount() {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const sb = getSupabase();
+
+    sb.from("signatures").select("*", { count: "exact", head: true }).eq("status", "signed")
+      .then(({ count: c }) => { if (c !== null) setCount(c); });
+
+    const channel = sb.channel("signatures-count")
+      .on("postgres_changes", { event: "*", schema: "public", table: "signatures" }, () => {
+        sb.from("signatures").select("*", { count: "exact", head: true }).eq("status", "signed")
+          .then(({ count: c }) => { if (c !== null) setCount(c); });
+      })
+      .subscribe();
+
+    return () => { sb.removeChannel(channel); };
+  }, []);
+
+  return count;
+}
 
 export default function SignatureForm() {
   const [file, setFile] = useState<File | null>(null);
@@ -71,6 +95,7 @@ export default function SignatureForm() {
   };
 
   const isLarge = file && file.size > 20 * 1024 * 1024;
+  const signatureCount = useSignatureCount();
 
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden" style={{ background: "var(--bg)" }}>
@@ -97,6 +122,26 @@ export default function SignatureForm() {
             </div>
             <div className="animate-subtitle-in" style={{ fontFamily: "Rajdhani,sans-serif", fontSize: 13, color: "var(--zinc-400)", letterSpacing: 1.5, textTransform: "uppercase", marginTop: 6 }}>
               Signature électronique · Traitement local
+            </div>
+
+            {/* Live signature counter */}
+            <div style={{ marginTop: 20, display: "inline-flex", alignItems: "center", gap: 12, padding: "10px 16px", background: "rgba(224,48,48,0.04)", border: "1px solid rgba(224,48,48,0.2)", borderRadius: 3 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <div style={{ fontFamily: "Orbitron,monospace", fontSize: 7, letterSpacing: 3, textTransform: "uppercase", color: "var(--zinc-500)" }}>Documents signés</div>
+                <AnimateNumber
+                  value={signatureCount}
+                  format={{ useGrouping: true }}
+                  duration={600}
+                  blur={16}
+                  className="an-counter"
+                  style={{ fontFamily: "Orbitron,monospace", fontSize: 28, fontWeight: 900, color: "#fff", letterSpacing: 2 }}
+                />
+              </div>
+              <div style={{ width: 1, height: 40, background: "rgba(224,48,48,0.2)" }} />
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22C55E", boxShadow: "0 0 8px #22C55E", display: "inline-block", animation: "dotPulse 2s ease-in-out infinite" }} />
+                <span style={{ fontFamily: "Rajdhani,sans-serif", fontSize: 10, color: "#22C55E", letterSpacing: 1 }}>LIVE</span>
+              </div>
             </div>
           </div>
 
