@@ -4,7 +4,7 @@ export interface SignatureDoc {
   token: string;
   email_expediteur: string;
   file_name: string;
-  status: "pending" | "signed";
+  status: "pending" | "signed" | "expired";
   created_at: string;
   email_signataire?: string;
   signed_at?: string;

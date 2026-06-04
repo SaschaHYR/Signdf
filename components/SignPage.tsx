@@ -7,7 +7,7 @@ import { sendSignatureEmail } from "@/lib/emailjs";
 
 const PdfPlacementEditor = lazy(() => import("./PdfPlacementEditor"));
 
-type PageStatus = "loading" | "ready" | "placing" | "already-signed" | "invalid" | "signing" | "success" | "error";
+type PageStatus = "loading" | "ready" | "placing" | "already-signed" | "expired" | "invalid" | "signing" | "success" | "error";
 
 export default function SignPage({ token }: { token: string }) {
   const [pageStatus, setPageStatus] = useState<PageStatus>("loading");
@@ -27,6 +27,7 @@ export default function SignPage({ token }: { token: string }) {
       try {
         const docData = await getSignatureDoc(token);
         if (!docData) { setPageStatus("invalid"); return; }
+        if (docData.status === "expired") { setPageStatus("expired"); return; }
         if (docData.status === "signed") {
           setSigDoc(docData);
           setSignedUrl(docData.signed_file_url ?? "");
@@ -151,7 +152,8 @@ export default function SignPage({ token }: { token: string }) {
           </div>
 
           {pageStatus === "loading" && <LoadingState />}
-          {pageStatus === "invalid" && <MessageState color="#ff6b6b" icon="✕" title="Lien invalide ou expiré" sub="Ce lien de signature n'existe pas ou a déjà été utilisé." />}
+          {pageStatus === "invalid" && <MessageState color="#ff6b6b" icon="✕" title="Lien invalide" sub="Ce lien de signature n'existe pas." />}
+          {pageStatus === "expired" && <MessageState color="#f59e0b" icon="⏱" title="Lien expiré" sub="Ce document a été supprimé après 7 jours. Demandez un nouveau lien à l'expéditeur." />}
 
           {pageStatus === "already-signed" && (
             <div style={{ textAlign: "center" }}>
