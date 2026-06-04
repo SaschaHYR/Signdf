@@ -174,13 +174,6 @@ export default function SignatureForm() {
             </div>
           </div>
 
-          <div className="animate-footer-in" style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ fontFamily: "Orbitron,monospace", fontSize: 8, letterSpacing: 2, textTransform: "uppercase", color: "var(--zinc-400)" }}>SEA · eIDAS · <span style={{ color: "rgba(224,48,48,0.6)" }}>NEXT.JS</span></div>
-            <div style={{ display: "flex", alignItems: "center", gap: 5, fontFamily: "Rajdhani,sans-serif", fontSize: 10, color: "var(--zinc-400)" }}>
-              <svg style={{ width: 10, height: 10 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>
-              PDF traité localement
-            </div>
-          </div>
         </div>
       </div>
     </div>
