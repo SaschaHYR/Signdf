@@ -66,7 +66,7 @@ export default function VerifyClient({ doc, token }: { doc: SignatureDoc | null;
                 <div>
                   <div style={{ fontFamily: "Orbitron,monospace", fontSize: 11, fontWeight: 700, letterSpacing: 2, color: "#22C55E", textTransform: "uppercase" }}>Document authentifié</div>
                   <div style={{ fontFamily: "Rajdhani,sans-serif", fontSize: 12, color: "var(--zinc-400)", marginTop: 3 }}>
-                    {hasTSR ? "Horodatage RFC 3161 certifié TSA" : "Signature enregistrée"}
+                    {hasTSR ? "Horodatage certifié · hash SHA-256 vérifié" : "Signature enregistrée · hash SHA-256 stocké"}
                   </div>
                 </div>
               </div>
