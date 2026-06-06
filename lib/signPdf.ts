@@ -1,4 +1,4 @@
-import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import { PDFDocument, rgb, StandardFonts } from "@cantoo/pdf-lib";
 
 export interface PlacementCoord {
   page: number;   // 0-indexed
@@ -152,6 +152,21 @@ export async function signPdf(
       size: 5, font: fontHelv, color: rgb(0.6, 0.6, 0.6),
     });
   }
+
+  // Lock PDF: opens without password, modifications blocked (owner password = token)
+  doc.encrypt({
+    userPassword: "",
+    ownerPassword: options.token,
+    permissions: {
+      printing: "highResolution",
+      modifying: false,
+      copying: false,
+      annotating: false,
+      fillingForms: false,
+      contentAccessibility: true,
+      documentAssembly: false,
+    },
+  });
 
   return doc.save();
 }

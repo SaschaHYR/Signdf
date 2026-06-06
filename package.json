@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@cantoo/pdf-lib": "^2.7.1",
     "@emailjs/browser": "^4.4.1",
     "@pdf-lib/fontkit": "^1.1.1",
     "@supabase/supabase-js": "^2.107.0",
