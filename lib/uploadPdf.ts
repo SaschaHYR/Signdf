@@ -9,6 +9,9 @@ export interface SignatureDoc {
   email_signataire?: string;
   signed_at?: string;
   signed_file_url?: string;
+  pdf_hash?: string;
+  timestamp_token?: string;
+  timestamp_date?: string;
 }
 
 export async function uploadOriginalPdf(file: File, token: string): Promise<void> {
@@ -64,11 +67,29 @@ export async function uploadSignedPdf(bytes: Uint8Array, token: string): Promise
 export async function markAsSigned(
   token: string,
   emailSignataire: string,
-  signedFileUrl: string
+  signedFileUrl: string,
+  pdfHash?: string,
+  timestampToken?: string,
+  timestampDate?: string,
 ): Promise<void> {
   const { error } = await getSupabase()
     .from("signatures")
-    .update({ status: "signed", email_signataire: emailSignataire, signed_at: new Date().toISOString(), signed_file_url: signedFileUrl })
+    .update({
+      status: "signed",
+      email_signataire: emailSignataire,
+      signed_at: new Date().toISOString(),
+      signed_file_url: signedFileUrl,
+      ...(pdfHash && { pdf_hash: pdfHash }),
+      ...(timestampToken && { timestamp_token: timestampToken }),
+      ...(timestampDate && { timestamp_date: timestampDate }),
+    })
     .eq("token", token);
   if (error) throw new Error(error.message);
+}
+
+export async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  const hashBuffer = await crypto.subtle.digest("SHA-256", bytes.buffer as ArrayBuffer);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
 }

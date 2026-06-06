@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, lazy, Suspense } from "react";
-import { getSignatureDoc, getOriginalPdfUrl, uploadSignedPdf, markAsSigned, SignatureDoc } from "@/lib/uploadPdf";
+import { getSignatureDoc, getOriginalPdfUrl, uploadSignedPdf, markAsSigned, SignatureDoc, sha256Hex } from "@/lib/uploadPdf";
 import { signPdf, downloadBytes, PlacementCoord } from "@/lib/signPdf";
 import { AnimatedBackground } from "@/components/ui/animated-background";
 import { sendSignatureEmail } from "@/lib/emailjs";
@@ -88,7 +88,25 @@ export default function SignPage({ token }: { token: string }) {
         paraphe: paraphe ?? undefined,
       });
       const signedFileUrl = await uploadSignedPdf(bytes, token);
-      await markAsSigned(token, email.trim(), signedFileUrl);
+
+      // Hash + RFC 3161 timestamp
+      const pdfHash = await sha256Hex(bytes);
+      let tsrBase64: string | undefined;
+      let tsrDate: string | undefined;
+      try {
+        const tsRes = await fetch("/api/timestamp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ hash: pdfHash }),
+        });
+        if (tsRes.ok) {
+          const tsData = await tsRes.json() as { tsr: string; timestamp: string };
+          tsrBase64 = tsData.tsr;
+          tsrDate = tsData.timestamp;
+        }
+      } catch { /* timestamp is best-effort */ }
+
+      await markAsSigned(token, email.trim(), signedFileUrl, pdfHash, tsrBase64, tsrDate);
 
       const fullName = `${prenom.trim()} ${nom.trim()}`;
       const fileName = sigDoc.file_name;
@@ -263,9 +281,14 @@ export default function SignPage({ token }: { token: string }) {
               <div style={{ fontFamily: "Orbitron,monospace", fontSize: 14, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase", color: "#22C55E", textShadow: "0 0 20px rgba(34,197,94,0.4)", marginBottom: 8 }}>Document Signé</div>
               <div style={{ fontFamily: "Rajdhani,sans-serif", fontSize: 13, color: "var(--zinc-400)", marginBottom: 16 }}>Téléchargement démarré · Email envoyé</div>
               {signedUrl && (
-                <a href={signedUrl} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", padding: "10px 20px", background: "var(--red)", borderRadius: 2, color: "#fff", fontFamily: "Orbitron,monospace", fontSize: 10, letterSpacing: 2, textDecoration: "none" }}>
-                  ↓ RETÉLÉCHARGER
-                </a>
+                <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+                  <a href={signedUrl} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", padding: "10px 20px", background: "var(--red)", borderRadius: 2, color: "#fff", fontFamily: "Orbitron,monospace", fontSize: 10, letterSpacing: 2, textDecoration: "none" }}>
+                    ↓ RETÉLÉCHARGER
+                  </a>
+                  <a href={`/verify/${token}`} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", padding: "10px 20px", background: "transparent", border: "1px solid rgba(34,197,94,0.4)", borderRadius: 2, color: "#22C55E", fontFamily: "Orbitron,monospace", fontSize: 10, letterSpacing: 2, textDecoration: "none" }}>
+                    ✓ VÉRIFIER
+                  </a>
+                </div>
               )}
             </div>
           )}
