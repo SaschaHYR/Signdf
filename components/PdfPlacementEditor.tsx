@@ -115,7 +115,7 @@ export default function PdfPlacementEditor({ pdfUrl, signerName, withParaphe, on
       setBlocks(prev => prev.map(b => b.id === id ? { ...b, xRatio: newXR, yRatio: newYR } : b));
     };
     const onMouseMove = (e: MouseEvent) => move(e.clientX, e.clientY);
-    const onTouchMove = (e: TouchEvent) => { e.preventDefault(); move(e.touches[0].clientX, e.touches[0].clientY); };
+    const onTouchMove = (e: TouchEvent) => { if (!dragging.current) return; e.preventDefault(); move(e.touches[0].clientX, e.touches[0].clientY); };
     const onUp = () => { dragging.current = null; };
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onUp);
@@ -161,7 +161,7 @@ export default function PdfPlacementEditor({ pdfUrl, signerName, withParaphe, on
       {/* Legend */}
       <div style={{ padding: "8px 20px", background: "rgba(18,18,20,0.9)", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", gap: 20, flexShrink: 0 }}>
         <LegendItem color="#4f8ef7" label="Signature" />
-        {withParaphe && <LegendItem color="#22C55E" label="Paraphe" />}
+        {withParaphe && <LegendItem color="#22C55E" label="Paraphe (toutes les pages)" />}
       </div>
 
       {/* PDF canvas area */}
@@ -177,7 +177,8 @@ export default function PdfPlacementEditor({ pdfUrl, signerName, withParaphe, on
         {pages.map((pageInfo, pageIdx) => {
           const canvasDataUrl = pageInfo.canvas.toDataURL();
           const sigBlock = blocks.find(b => b.id === "signature" && b.page === pageIdx);
-          const parBlock = withParaphe ? blocks.find(b => b.id === "paraphe" && b.page === pageIdx) : undefined;
+          // Paraphe shows on every page — shared position
+          const parPos = withParaphe ? blocks.find(b => b.id === "paraphe") : undefined;
 
           return (
             <div key={pageIdx} style={{ position: "relative", display: "inline-block" }}>
@@ -189,9 +190,9 @@ export default function PdfPlacementEditor({ pdfUrl, signerName, withParaphe, on
                 style={{ position: "relative", boxShadow: "0 4px 40px rgba(0,0,0,0.8)", border: "1px solid rgba(255,255,255,0.08)", userSelect: "none" }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={canvasDataUrl} alt={`Page ${pageIdx + 1}`} style={{ display: "block", maxWidth: "80vw", maxHeight: "none" }} draggable={false} />
+                <img src={canvasDataUrl} alt={`Page ${pageIdx + 1}`} style={{ display: "block", maxWidth: "88vw", maxHeight: "none" }} draggable={false} />
 
-                {/* Signature block */}
+                {/* Signature block — only on its target page */}
                 {sigBlock && (
                   <DragBlock
                     xRatio={sigBlock.xRatio}
@@ -208,11 +209,11 @@ export default function PdfPlacementEditor({ pdfUrl, signerName, withParaphe, on
                   </DragBlock>
                 )}
 
-                {/* Paraphe block */}
-                {parBlock && (
+                {/* Paraphe block — same position on every page */}
+                {parPos && (
                   <DragBlock
-                    xRatio={parBlock.xRatio}
-                    yRatio={parBlock.yRatio}
+                    xRatio={parPos.xRatio}
+                    yRatio={parPos.yRatio}
                     wRatio={PAR_W_RATIO}
                     hRatio={PAR_H_RATIO}
                     color="#22C55E"
@@ -225,15 +226,14 @@ export default function PdfPlacementEditor({ pdfUrl, signerName, withParaphe, on
                 )}
               </div>
 
-              {/* Page selector buttons for blocks */}
+              {/* Page selector only for signature block */}
               <PageMover
                 pageIdx={pageIdx}
                 totalPages={pages.length}
                 sigBlock={sigBlock}
-                parBlock={withParaphe ? parBlock : undefined}
-                onMove={(blockId, dir) => {
+                onMove={(dir) => {
                   setBlocks(prev => prev.map(b => {
-                    if (b.id !== blockId) return b;
+                    if (b.id !== "signature") return b;
                     const newPage = Math.min(Math.max(b.page + dir, 0), pages.length - 1);
                     return { ...b, page: newPage };
                   }));
@@ -291,35 +291,25 @@ function LegendItem({ color, label }: { color: string; label: string }) {
   );
 }
 
-function PageMover({ pageIdx, totalPages, sigBlock, parBlock, onMove }: {
+function PageMover({ pageIdx, totalPages, sigBlock, onMove }: {
   pageIdx: number; totalPages: number;
-  sigBlock?: DraggableBlock; parBlock?: DraggableBlock;
-  onMove: (id: "signature" | "paraphe", dir: -1 | 1) => void;
+  sigBlock?: DraggableBlock;
+  onMove: (dir: -1 | 1) => void;
 }) {
-  if (totalPages <= 1) return null;
+  if (totalPages <= 1 || !sigBlock) return null;
+  const onThisPage = sigBlock.page === pageIdx;
   return (
-    <div style={{ display: "flex", gap: 8, marginTop: 6, justifyContent: "center" }}>
-      {sigBlock && (
-        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-          <span style={{ fontFamily: "Orbitron,monospace", fontSize: 8, color: "#4f8ef7" }}>SIG</span>
-          <MoverBtn disabled={pageIdx === 0 || sigBlock.page !== pageIdx} onClick={() => onMove("signature", -1)}>↑</MoverBtn>
-          <MoverBtn disabled={pageIdx === totalPages - 1 || sigBlock.page !== pageIdx} onClick={() => onMove("signature", 1)}>↓</MoverBtn>
-        </div>
-      )}
-      {parBlock && (
-        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-          <span style={{ fontFamily: "Orbitron,monospace", fontSize: 8, color: "#22C55E" }}>PAR</span>
-          <MoverBtn disabled={pageIdx === 0 || parBlock.page !== pageIdx} onClick={() => onMove("paraphe", -1)}>↑</MoverBtn>
-          <MoverBtn disabled={pageIdx === totalPages - 1 || parBlock.page !== pageIdx} onClick={() => onMove("paraphe", 1)}>↓</MoverBtn>
-        </div>
-      )}
+    <div style={{ display: "flex", gap: 6, marginTop: 6, justifyContent: "center", alignItems: "center" }}>
+      <span style={{ fontFamily: "Orbitron,monospace", fontSize: 8, color: "#4f8ef7" }}>SIGNATURE</span>
+      <MoverBtn disabled={!onThisPage || pageIdx === 0} onClick={() => onMove(-1)}>↑ page préc.</MoverBtn>
+      <MoverBtn disabled={!onThisPage || pageIdx === totalPages - 1} onClick={() => onMove(1)}>page suiv. ↓</MoverBtn>
     </div>
   );
 }
 
 function MoverBtn({ onClick, disabled, children }: { onClick: () => void; disabled: boolean; children: React.ReactNode }) {
   return (
-    <button onClick={onClick} disabled={disabled} style={{ width: 20, height: 20, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 2, color: disabled ? "rgba(255,255,255,0.2)" : "#fff", cursor: disabled ? "default" : "pointer", fontSize: 10, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <button onClick={onClick} disabled={disabled} style={{ padding: "3px 8px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 2, color: disabled ? "rgba(255,255,255,0.2)" : "#fff", cursor: disabled ? "default" : "pointer", fontFamily: "Orbitron,monospace", fontSize: 7, letterSpacing: 1 }}>
       {children}
     </button>
   );

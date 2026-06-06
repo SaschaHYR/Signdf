@@ -114,43 +114,44 @@ export async function signPdf(
     });
   }
 
-  // Paraphe block
+  // Paraphe block — applied on every page
   if (options.paraphe) {
     const ph = options.paraphe;
-    const pageIdx = Math.min(ph.page, pages.length - 1);
-    const page = pages[pageIdx];
-    const { width, height } = page.getSize();
-
-    const blockW = 60;
-    const blockH = 44;
-
-    const x = Math.min(ph.xRatio * width, width - blockW);
-    const y = Math.max((1 - ph.yRatio) * height - blockH, 0);
-
     const initiales = (options.prenom[0] ?? "") + (options.nom[0] ?? "");
 
-    page.drawRectangle({
-      x, y, width: blockW, height: blockH,
-      borderColor: rgb(0.102, 0.153, 0.267),
-      borderWidth: 0.8,
-      color: rgb(0.97, 0.97, 1),
-    });
+    for (let i = 0; i < pages.length; i++) {
+      const page = pages[i];
+      const { width, height } = page.getSize();
 
-    page.drawLine({
-      start: { x, y: y + blockH },
-      end:   { x: x + blockW, y: y + blockH },
-      thickness: 1.5, color: rgb(0.878, 0.188, 0.188),
-    });
+      const blockW = 60;
+      const blockH = 44;
 
-    page.drawText(initiales.toUpperCase(), {
-      x: x + 10, y: y + blockH - 26,
-      size: 18, font: fontItalic, color: rgb(0.08, 0.12, 0.22),
-    });
+      const x = Math.min(ph.xRatio * width, width - blockW);
+      const y = Math.max((1 - ph.yRatio) * height - blockH, 0);
 
-    page.drawText("Paraphe", {
-      x: x + 8, y: y + 5,
-      size: 5, font: fontHelv, color: rgb(0.6, 0.6, 0.6),
-    });
+      page.drawRectangle({
+        x, y, width: blockW, height: blockH,
+        borderColor: rgb(0.102, 0.153, 0.267),
+        borderWidth: 0.8,
+        color: rgb(0.97, 0.97, 1),
+      });
+
+      page.drawLine({
+        start: { x, y: y + blockH },
+        end:   { x: x + blockW, y: y + blockH },
+        thickness: 1.5, color: rgb(0.878, 0.188, 0.188),
+      });
+
+      page.drawText(initiales.toUpperCase(), {
+        x: x + 10, y: y + blockH - 26,
+        size: 18, font: fontItalic, color: rgb(0.08, 0.12, 0.22),
+      });
+
+      page.drawText("Paraphe", {
+        x: x + 8, y: y + 5,
+        size: 5, font: fontHelv, color: rgb(0.6, 0.6, 0.6),
+      });
+    }
   }
 
   // Lock PDF: opens without password, modifications blocked (owner password = token)
