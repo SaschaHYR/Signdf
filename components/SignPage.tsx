@@ -151,8 +151,8 @@ export default function SignPage({ token }: { token: string }) {
       <div className="corner corner-bl" />
       <div className="corner corner-br" />
 
-      <div className="relative z-10" style={{ width: 500 }}>
-        <div style={{ background: "rgba(24,24,27,0.92)", border: "1px solid rgba(224,48,48,0.3)", borderRadius: 4, padding: "40px 44px", backdropFilter: "blur(20px)", position: "relative", boxShadow: "0 0 40px rgba(224,48,48,0.08),0 0 80px rgba(0,0,0,0.8)" }}>
+      <div className="relative z-10" style={{ width: "100%", maxWidth: 500, padding: "0 16px", boxSizing: "border-box" }}>
+        <div style={{ background: "rgba(24,24,27,0.92)", border: "1px solid rgba(224,48,48,0.3)", borderRadius: 4, padding: "clamp(20px,5vw,40px) clamp(16px,5vw,44px)", width: "100%", boxSizing: "border-box", backdropFilter: "blur(20px)", position: "relative", boxShadow: "0 0 40px rgba(224,48,48,0.08),0 0 80px rgba(0,0,0,0.8)" }}>
           <div style={{ position: "absolute", top: -1, left: "10%", right: "10%", height: 1, background: "linear-gradient(90deg,transparent,#E03030,transparent)", filter: "blur(1px)" }} />
           <div style={{ position: "absolute", top: -1, left: "25%", right: "25%", height: 1, background: "#E03030", boxShadow: "0 0 12px #E03030" }} />
 
@@ -218,10 +218,11 @@ export default function SignPage({ token }: { token: string }) {
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+              <div className="name-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
                 <FieldGroup label="Prénom" value={prenom} onChange={setPrenom} placeholder="Jean" />
                 <FieldGroup label="Nom" value={nom} onChange={setNom} placeholder="Dupont" />
               </div>
+              <style>{`@media(max-width:380px){.name-grid{grid-template-columns:1fr!important}}`}</style>
               <div style={{ marginBottom: 16 }}>
                 <FieldGroup label="Votre email" value={email} onChange={setEmail} placeholder="vous@exemple.com" type="email" />
               </div>

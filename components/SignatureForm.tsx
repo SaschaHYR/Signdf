@@ -107,8 +107,8 @@ export default function SignatureForm() {
       <div className="corner corner-br" />
       <Particles />
 
-      <div className="relative z-10">
-        <div className="animate-card-in" style={{ background: "rgba(24,24,27,0.92)", border: "1px solid rgba(224,48,48,0.3)", borderRadius: 4, padding: "40px 44px", width: 500, backdropFilter: "blur(20px)", position: "relative", boxShadow: "0 0 40px rgba(224,48,48,0.08),0 0 80px rgba(0,0,0,0.8),inset 0 1px 0 rgba(255,255,255,0.05)" }}>
+      <div className="relative z-10" style={{ width: "100%", maxWidth: 500, padding: "0 16px", boxSizing: "border-box" }}>
+        <div className="animate-card-in" style={{ background: "rgba(24,24,27,0.92)", border: "1px solid rgba(224,48,48,0.3)", borderRadius: 4, padding: "clamp(20px,5vw,40px) clamp(16px,5vw,44px)", width: "100%", boxSizing: "border-box", backdropFilter: "blur(20px)", position: "relative", boxShadow: "0 0 40px rgba(224,48,48,0.08),0 0 80px rgba(0,0,0,0.8),inset 0 1px 0 rgba(255,255,255,0.05)" }}>
           <div style={{ position: "absolute", top: -1, left: "10%", right: "10%", height: 1, background: "linear-gradient(90deg,transparent,#E03030,transparent)", filter: "blur(1px)" }} />
           <div style={{ position: "absolute", top: -1, left: "25%", right: "25%", height: 1, background: "#E03030", boxShadow: "0 0 12px #E03030" }} />
 
@@ -125,7 +125,7 @@ export default function SignatureForm() {
             </div>
 
             {/* Live signature counter */}
-            <div style={{ marginTop: 20, display: "inline-flex", alignItems: "center", gap: 12, padding: "10px 16px", background: "rgba(224,48,48,0.04)", border: "1px solid rgba(224,48,48,0.2)", borderRadius: 3 }}>
+            <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: "rgba(224,48,48,0.04)", border: "1px solid rgba(224,48,48,0.2)", borderRadius: 3 }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 <div style={{ fontFamily: "Orbitron,monospace", fontSize: 7, letterSpacing: 3, textTransform: "uppercase", color: "var(--zinc-500)" }}>Documents signés</div>
                 <AnimateNumber

@@ -32,8 +32,8 @@ export default function VerifyClient({ doc, token }: { doc: SignatureDoc | null;
       <div className="corner corner-tl" /><div className="corner corner-tr" />
       <div className="corner corner-bl" /><div className="corner corner-br" />
 
-      <div className="relative z-10" style={{ width: 560, maxWidth: "95vw" }}>
-        <div style={{ background: "rgba(24,24,27,0.92)", border: "1px solid rgba(224,48,48,0.3)", borderRadius: 4, padding: "40px 44px", backdropFilter: "blur(20px)", boxShadow: "0 0 40px rgba(224,48,48,0.08),0 0 80px rgba(0,0,0,0.8)" }}>
+      <div className="relative z-10" style={{ width: "100%", maxWidth: 560, padding: "0 16px", boxSizing: "border-box" }}>
+        <div style={{ background: "rgba(24,24,27,0.92)", border: "1px solid rgba(224,48,48,0.3)", borderRadius: 4, padding: "clamp(20px,5vw,40px) clamp(16px,5vw,44px)", width: "100%", boxSizing: "border-box", backdropFilter: "blur(20px)", boxShadow: "0 0 40px rgba(224,48,48,0.08),0 0 80px rgba(0,0,0,0.8)" }}>
 
           {/* Top accent */}
           <div style={{ position: "absolute", top: -1, left: "10%", right: "10%", height: 1, background: "linear-gradient(90deg,transparent,#E03030,transparent)", filter: "blur(1px)" }} />
