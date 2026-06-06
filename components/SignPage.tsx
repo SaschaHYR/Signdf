@@ -202,13 +202,13 @@ export default function SignPage({ token }: { token: string }) {
 
               <div style={{ marginBottom: 16, padding: "12px 14px", background: "rgba(224,48,48,0.03)", border: "1px solid rgba(224,48,48,0.15)", borderRadius: 2 }}>
                 <div style={{ fontFamily: "Orbitron,monospace", fontSize: 8, letterSpacing: 2, textTransform: "uppercase", color: "var(--red)", marginBottom: 8 }}>Aperçu de votre signature</div>
-                <div style={{ fontFamily: "'Dancing Script',cursive", fontSize: 22, color: "#fff" }}>
+                <div style={{ fontFamily: "'Great Vibes',cursive", fontSize: 26, color: "#fff", lineHeight: 1.2 }}>
                   {prenom || "Prénom"} {nom || "Nom"}
                 </div>
                 {withParaphe && (
                   <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ fontFamily: "Orbitron,monospace", fontSize: 8, letterSpacing: 2, textTransform: "uppercase", color: "#22C55E" }}>Paraphe :</div>
-                    <div style={{ fontFamily: "Caveat,cursive", fontSize: 20, color: "#fff" }}>
+                    <div style={{ fontFamily: "'Pinyon Script',cursive", fontSize: 24, color: "#fff" }}>
                       {(prenom[0] ?? "") + (nom[0] ?? "")}
                     </div>
                   </div>

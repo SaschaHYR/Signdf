@@ -241,6 +241,9 @@ function ShareState({ url, onReset, onCopy, copied }: { url: string; onReset: ()
         <button onClick={onCopy} style={{ flexShrink: 0, padding: "4px 10px", background: copied ? "rgba(34,197,94,0.2)" : "var(--red)", border: "none", borderRadius: 2, color: "#fff", fontFamily: "Orbitron,monospace", fontSize: 8, letterSpacing: 1, cursor: "pointer", transition: "all 0.2s" }}>
           {copied ? "✓ COPIÉ" : "COPIER"}
         </button>
+        <a href={url} target="_blank" rel="noopener noreferrer" style={{ flexShrink: 0, padding: "4px 10px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 2, color: "var(--zinc-300)", fontFamily: "Orbitron,monospace", fontSize: 8, letterSpacing: 1, cursor: "pointer", textDecoration: "none", whiteSpace: "nowrap" }}>
+          OUVRIR ↗
+        </a>
       </div>
       <button onClick={onReset} style={{ width: "100%", padding: "10px 20px", background: "transparent", border: "1px solid rgba(224,48,48,0.3)", borderRadius: 2, color: "var(--zinc-400)", fontFamily: "Orbitron,monospace", fontSize: 10, letterSpacing: 2, textTransform: "uppercase", cursor: "pointer" }}>
         ← NOUVEAU DOCUMENT

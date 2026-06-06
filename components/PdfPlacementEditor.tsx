@@ -80,23 +80,33 @@ export default function PdfPlacementEditor({ pdfUrl, signerName, withParaphe, on
     return pageRefs.current[pageIdx]?.getBoundingClientRect() ?? null;
   }, []);
 
-  const onMouseDown = useCallback((e: React.MouseEvent, id: "signature" | "paraphe") => {
-    e.preventDefault();
+  const startDrag = useCallback((clientX: number, clientY: number, id: "signature" | "paraphe") => {
     const blk = blocks.find(b => b.id === id);
     if (!blk) return;
-    dragging.current = { id, startX: e.clientX, startY: e.clientY, origXR: blk.xRatio, origYR: blk.yRatio };
+    dragging.current = { id, startX: clientX, startY: clientY, origXR: blk.xRatio, origYR: blk.yRatio };
   }, [blocks]);
 
+  const onMouseDown = useCallback((e: React.MouseEvent, id: "signature" | "paraphe") => {
+    e.preventDefault();
+    startDrag(e.clientX, e.clientY, id);
+  }, [startDrag]);
+
+  const onTouchStart = useCallback((e: React.TouchEvent, id: "signature" | "paraphe") => {
+    e.preventDefault();
+    const t = e.touches[0];
+    startDrag(t.clientX, t.clientY, id);
+  }, [startDrag]);
+
   useEffect(() => {
-    const onMouseMove = (e: MouseEvent) => {
+    const move = (clientX: number, clientY: number) => {
       if (!dragging.current) return;
       const { id, startX, startY, origXR, origYR } = dragging.current;
       const blk = blocks.find(b => b.id === id);
       if (!blk) return;
       const rect = getPageRect(blk.page);
       if (!rect) return;
-      const dx = (e.clientX - startX) / rect.width;
-      const dy = (e.clientY - startY) / rect.height;
+      const dx = (clientX - startX) / rect.width;
+      const dy = (clientY - startY) / rect.height;
       const isSignature = id === "signature";
       const wR = isSignature ? SIG_W_RATIO : PAR_W_RATIO;
       const hR = isSignature ? SIG_H_RATIO : PAR_H_RATIO;
@@ -104,10 +114,19 @@ export default function PdfPlacementEditor({ pdfUrl, signerName, withParaphe, on
       const newYR = Math.min(Math.max(origYR + dy, 0), 1 - hR);
       setBlocks(prev => prev.map(b => b.id === id ? { ...b, xRatio: newXR, yRatio: newYR } : b));
     };
-    const onMouseUp = () => { dragging.current = null; };
+    const onMouseMove = (e: MouseEvent) => move(e.clientX, e.clientY);
+    const onTouchMove = (e: TouchEvent) => { e.preventDefault(); move(e.touches[0].clientX, e.touches[0].clientY); };
+    const onUp = () => { dragging.current = null; };
     window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-    return () => { window.removeEventListener("mousemove", onMouseMove); window.removeEventListener("mouseup", onMouseUp); };
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onUp);
+    };
   }, [blocks, getPageRect]);
 
   const handleConfirm = () => {
@@ -124,16 +143,16 @@ export default function PdfPlacementEditor({ pdfUrl, signerName, withParaphe, on
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 1000, display: "flex", flexDirection: "column" }}>
       {/* Header */}
-      <div style={{ padding: "12px 20px", background: "rgba(24,24,27,0.98)", borderBottom: "1px solid rgba(224,48,48,0.3)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-        <div>
+      <div style={{ padding: "10px 16px", background: "rgba(24,24,27,0.98)", borderBottom: "1px solid rgba(224,48,48,0.3)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, gap: 12, flexWrap: "wrap" }}>
+        <div style={{ minWidth: 0 }}>
           <div style={{ fontFamily: "Orbitron,monospace", fontSize: 10, letterSpacing: 3, color: "var(--red)", textTransform: "uppercase", marginBottom: 2 }}>Placement des blocs</div>
-          <div style={{ fontFamily: "Rajdhani,sans-serif", fontSize: 12, color: "var(--zinc-400)" }}>Glissez les blocs pour les positionner sur le document</div>
+          <div style={{ fontFamily: "Rajdhani,sans-serif", fontSize: 11, color: "var(--zinc-400)" }}>Glissez les blocs sur le document</div>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={onCancel} style={{ padding: "8px 18px", background: "transparent", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 2, color: "var(--zinc-400)", fontFamily: "Orbitron,monospace", fontSize: 9, letterSpacing: 2, cursor: "pointer" }}>
+        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+          <button onClick={onCancel} style={{ padding: "8px 14px", background: "transparent", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 2, color: "var(--zinc-400)", fontFamily: "Orbitron,monospace", fontSize: 9, letterSpacing: 2, cursor: "pointer" }}>
             ANNULER
           </button>
-          <button onClick={handleConfirm} disabled={loading} style={{ padding: "8px 18px", background: "var(--red)", border: "none", borderRadius: 2, color: "#fff", fontFamily: "Orbitron,monospace", fontSize: 9, fontWeight: 700, letterSpacing: 2, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.5 : 1 }}>
+          <button onClick={handleConfirm} disabled={loading} style={{ padding: "8px 14px", background: "var(--red)", border: "none", borderRadius: 2, color: "#fff", fontFamily: "Orbitron,monospace", fontSize: 9, fontWeight: 700, letterSpacing: 2, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.5 : 1 }}>
             CONFIRMER →
           </button>
         </div>
@@ -146,7 +165,7 @@ export default function PdfPlacementEditor({ pdfUrl, signerName, withParaphe, on
       </div>
 
       {/* PDF canvas area */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "24px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "24px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 16, WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
         {loading && (
           <div style={{ padding: "60px 0", textAlign: "center" }}>
             <div style={{ width: 32, height: 32, border: "2px solid rgba(224,48,48,0.3)", borderTopColor: "var(--red)", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
@@ -182,8 +201,9 @@ export default function PdfPlacementEditor({ pdfUrl, signerName, withParaphe, on
                     color="#4f8ef7"
                     label="SIGNATURE"
                     onMouseDown={(e) => onMouseDown(e, "signature")}
+                    onTouchStart={(e) => onTouchStart(e, "signature")}
                   >
-                    <div style={{ fontFamily: "'Dancing Script',cursive", fontSize: "clamp(8px, 2.5vw, 14px)", color: "#1a2744", lineHeight: 1.2 }}>{signerName}</div>
+                    <div style={{ fontFamily: "'Great Vibes',cursive", fontSize: "clamp(10px, 3vw, 16px)", color: "#1a2744", lineHeight: 1.2 }}>{signerName}</div>
                     <div style={{ fontFamily: "Rajdhani,sans-serif", fontSize: "clamp(6px, 1.5vw, 9px)", color: "#666" }}>{new Date().toLocaleDateString("fr-FR")}</div>
                   </DragBlock>
                 )}
@@ -198,8 +218,9 @@ export default function PdfPlacementEditor({ pdfUrl, signerName, withParaphe, on
                     color="#22C55E"
                     label="PARAPHE"
                     onMouseDown={(e) => onMouseDown(e, "paraphe")}
+                    onTouchStart={(e) => onTouchStart(e, "paraphe")}
                   >
-                    <div style={{ fontFamily: "Caveat,cursive", fontSize: "clamp(10px, 2.5vw, 18px)", color: "#1a2744" }}>{initiales}</div>
+                    <div style={{ fontFamily: "'Pinyon Script',cursive", fontSize: "clamp(12px, 3vw, 20px)", color: "#1a2744" }}>{initiales}</div>
                   </DragBlock>
                 )}
               </div>
@@ -226,16 +247,18 @@ export default function PdfPlacementEditor({ pdfUrl, signerName, withParaphe, on
   );
 }
 
-function DragBlock({ xRatio, yRatio, wRatio, hRatio, color, label, onMouseDown, children }: {
+function DragBlock({ xRatio, yRatio, wRatio, hRatio, color, label, onMouseDown, onTouchStart, children }: {
   xRatio: number; yRatio: number; wRatio: number; hRatio: number;
   color: string; label: string;
   onMouseDown: (e: React.MouseEvent) => void;
+  onTouchStart: (e: React.TouchEvent) => void;
   children: React.ReactNode;
 }) {
   return (
     <div
       onMouseDown={onMouseDown}
-      style={{
+      onTouchStart={onTouchStart}
+      style={{ touchAction: "none",
         position: "absolute",
         left: `${xRatio * 100}%`,
         top: `${yRatio * 100}%`,
