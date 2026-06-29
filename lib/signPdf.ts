@@ -1,4 +1,4 @@
-import { PDFDocument, rgb, StandardFonts } from "@cantoo/pdf-lib";
+import { PDFDocument, rgb, StandardFonts, PDFTextField, PDFCheckBox } from "@cantoo/pdf-lib";
 
 export interface PlacementCoord {
   page: number;   // 0-indexed
@@ -12,6 +12,7 @@ export interface SignatureOptions {
   token: string;
   placement?: PlacementCoord;
   paraphe?: PlacementCoord;
+  fieldValues?: Record<string, string>; // AcroForm field values to fill before signing
 }
 
 export async function signPdf(
@@ -31,6 +32,26 @@ export async function signPdf(
     doc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: false });
   } catch (e) {
     throw new Error(`PDF illisible : ${e instanceof Error ? e.message : "format inconnu"}`);
+  }
+
+  // Fill AcroForm fields if provided
+  if (options.fieldValues && Object.keys(options.fieldValues).length > 0) {
+    try {
+      const form = doc.getForm();
+      for (const [name, value] of Object.entries(options.fieldValues)) {
+        if (!value) continue;
+        try {
+          const field = form.getField(name);
+          if (field instanceof PDFTextField) {
+            field.setText(value);
+          } else if (field instanceof PDFCheckBox) {
+            if (value === "On") field.check();
+            else field.uncheck();
+          }
+        } catch { /* field not found or wrong type — skip */ }
+      }
+      try { form.flatten(); } catch { /* flatten may fail on some PDFs — non-fatal */ }
+    } catch { /* no AcroForm — skip */ }
   }
 
   const fontItalic = await doc.embedFont(StandardFonts.TimesRomanItalic);

@@ -3,12 +3,14 @@
 import { useEffect, useState, lazy, Suspense } from "react";
 import { getSignatureDoc, getOriginalPdfUrl, uploadSignedPdf, markAsSigned, SignatureDoc, sha256Hex } from "@/lib/uploadPdf";
 import { signPdf, downloadBytes, PlacementCoord } from "@/lib/signPdf";
+import { detectPdfFields, signatureFieldToPlacement, DetectionResult } from "@/lib/detectPdfFields";
 import { AnimatedBackground } from "@/components/ui/animated-background";
 import { sendSignatureEmail } from "@/lib/emailjs";
 
 const PdfPlacementEditor = lazy(() => import("./PdfPlacementEditor"));
+const PdfFormFiller = lazy(() => import("./PdfFormFiller"));
 
-type PageStatus = "loading" | "ready" | "placing" | "already-signed" | "expired" | "invalid" | "signing" | "success" | "error";
+type PageStatus = "loading" | "form" | "ready" | "placing" | "already-signed" | "expired" | "invalid" | "signing" | "success" | "error";
 
 export default function SignPage({ token }: { token: string }) {
   const [pageStatus, setPageStatus] = useState<PageStatus>("loading");
@@ -22,6 +24,8 @@ export default function SignPage({ token }: { token: string }) {
   const [withParaphe, setWithParaphe] = useState(false);
   const [sigPlacement, setSigPlacement] = useState<PlacementCoord | undefined>();
   const [parPlacement, setParPlacement] = useState<PlacementCoord | null>(null);
+  const [detection, setDetection] = useState<DetectionResult | null>(null);
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
 
   useEffect(() => {
     async function load() {
@@ -38,7 +42,23 @@ export default function SignPage({ token }: { token: string }) {
         const url = getOriginalPdfUrl(token);
         setSigDoc(docData);
         setPdfUrl(url);
-        setPageStatus("ready");
+
+        // Detect AcroForm fields
+        try {
+          const result = await detectPdfFields(url);
+          setDetection(result);
+          if (result.hasForm) {
+            // Pre-position signature at detected field if present
+            if (result.signatureField) {
+              setSigPlacement(signatureFieldToPlacement(result.signatureField));
+            }
+            setPageStatus("form");
+          } else {
+            setPageStatus("ready");
+          }
+        } catch {
+          setPageStatus("ready");
+        }
       } catch {
         setPageStatus("invalid");
       }
@@ -86,6 +106,7 @@ export default function SignPage({ token }: { token: string }) {
         token,
         placement: placement ?? undefined,
         paraphe: paraphe ?? undefined,
+        fieldValues,
       });
       const signedFileUrl = await uploadSignedPdf(bytes, token);
 
@@ -128,6 +149,25 @@ export default function SignPage({ token }: { token: string }) {
       setPageStatus("ready");
     }
   };
+
+  if (pageStatus === "form" && detection) {
+    return (
+      <Suspense fallback={null}>
+        <PdfFormFiller
+          fields={detection.fields}
+          onConfirm={(values) => {
+            setFieldValues(values);
+            setPageStatus("ready");
+          }}
+          onSkip={() => {
+            setFieldValues({});
+            setSigPlacement(undefined);
+            setPageStatus("ready");
+          }}
+        />
+      </Suspense>
+    );
+  }
 
   if (pageStatus === "placing") {
     return (
@@ -188,6 +228,16 @@ export default function SignPage({ token }: { token: string }) {
 
           {(pageStatus === "ready" || pageStatus === "signing" || pageStatus === "error") && (
             <>
+              {detection?.hasForm && (
+                <div style={{ marginBottom: 16, padding: "8px 12px", background: "rgba(34,197,94,0.04)", border: "1px solid rgba(34,197,94,0.18)", borderRadius: 3, display: "flex", alignItems: "center", gap: 8 }}>
+                  <svg style={{ width: 12, height: 12, color: "#22C55E", flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  <span style={{ fontFamily: "Rajdhani,sans-serif", fontSize: 11, color: "#22C55E" }}>
+                    Formulaire rempli · {detection.signatureField ? "signature auto-positionnée" : "champs intégrés au PDF"}
+                  </span>
+                  <button onClick={() => setPageStatus("form")} style={{ marginLeft: "auto", padding: "2px 8px", background: "transparent", border: "1px solid rgba(34,197,94,0.3)", borderRadius: 2, color: "#22C55E", fontFamily: "Orbitron,monospace", fontSize: 7, letterSpacing: 1, cursor: "pointer" }}>MODIFIER</button>
+                </div>
+              )}
+
               {pdfUrl && (
                 <div style={{ marginBottom: 20 }}>
                   <div style={{ fontFamily: "Orbitron,monospace", fontSize: 8, letterSpacing: 2, textTransform: "uppercase", color: "var(--zinc-400)", marginBottom: 8 }}>Aperçu du document</div>
