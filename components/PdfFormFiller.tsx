@@ -95,7 +95,7 @@ export default function PdfFormFiller({ fields, onConfirm, onSkip }: Props) {
           </div>
 
           <div style={{ marginTop: 12, fontFamily: "Rajdhani,sans-serif", fontSize: 10, color: "var(--zinc-600)", textAlign: "center" }}>
-            "Ignorer" passe directement au placement manuel de la signature
+            &ldquo;Ignorer&rdquo; passe directement au placement manuel de la signature
           </div>
         </div>
       </div>

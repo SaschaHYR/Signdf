@@ -3,6 +3,10 @@
 @tailwind utilities;
 
 :root {
+  --font-orbitron: 'Orbitron', monospace;
+  --font-rajdhani: 'Rajdhani', sans-serif;
+  --font-great-vibes: 'Great Vibes', cursive;
+  --font-pinyon-script: 'Pinyon Script', cursive;
   --red: #E03030;
   --red-dark: #A01818;
   --red-glow: rgba(224, 48, 48, 0.4);
