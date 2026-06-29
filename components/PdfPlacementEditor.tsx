@@ -15,6 +15,8 @@ interface TextBlock {
   page: number;
   xRatio: number;
   yRatio: number;
+  wRatio: number;
+  hRatio: number;
   text: string;
   fontSize: number;
 }
@@ -37,12 +39,15 @@ const SIG_W_RATIO = 200 / 595;
 const SIG_H_RATIO = 72 / 842;
 const PAR_W_RATIO = 56 / 595;
 const PAR_H_RATIO = 40 / 842;
-const TXT_W_RATIO = 180 / 595;
-const TXT_H_RATIO = 28 / 842;
+const TXT_W_INIT = 180 / 595;
+const TXT_H_INIT = 28 / 842;
+const TXT_MIN_W = 40 / 595;
+const TXT_MIN_H = 16 / 842;
 
 type DragTarget =
   | { kind: "block"; id: "signature" | "paraphe" }
-  | { kind: "text"; id: string };
+  | { kind: "text"; id: string }
+  | { kind: "resize"; id: string };
 
 export default function PdfPlacementEditor({ pdfUrl, signerName, withParaphe, onConfirm, onCancel }: Props) {
   const [pages, setPages] = useState<PageInfo[]>([]);
@@ -107,7 +112,9 @@ export default function PdfPlacementEditor({ pdfUrl, signerName, withParaphe, on
     } else {
       const blk = textBlocks.find(b => b.id === target.id);
       if (!blk) return;
-      origXR = blk.xRatio; origYR = blk.yRatio;
+      // for resize, origXR = origW, origYR = origH
+      origXR = target.kind === "resize" ? blk.wRatio : blk.xRatio;
+      origYR = target.kind === "resize" ? blk.hRatio : blk.yRatio;
     }
     dragging.current = { target, startX: clientX, startY: clientY, origXR, origYR };
   }, [blocks, textBlocks]);
@@ -132,6 +139,18 @@ export default function PdfPlacementEditor({ pdfUrl, signerName, withParaphe, on
     startDrag(e.touches[0].clientX, e.touches[0].clientY, { kind: "text", id });
   }, [startDrag]);
 
+  const onMouseDownResize = useCallback((e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    startDrag(e.clientX, e.clientY, { kind: "resize", id });
+  }, [startDrag]);
+
+  const onTouchStartResize = useCallback((e: React.TouchEvent, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    startDrag(e.touches[0].clientX, e.touches[0].clientY, { kind: "resize", id });
+  }, [startDrag]);
+
   useEffect(() => {
     const move = (clientX: number, clientY: number) => {
       if (!dragging.current) return;
@@ -153,9 +172,13 @@ export default function PdfPlacementEditor({ pdfUrl, signerName, withParaphe, on
         setBlocks(prev => prev.map(b => b.id === target.id
           ? { ...b, xRatio: Math.min(Math.max(origXR + dx, 0), 1 - wR), yRatio: Math.min(Math.max(origYR + dy, 0), 1 - hR) }
           : b));
+      } else if (target.kind === "resize") {
+        setTextBlocks(prev => prev.map(b => b.id === target.id
+          ? { ...b, wRatio: Math.max(origXR + dx, TXT_MIN_W), hRatio: Math.max(origYR + dy, TXT_MIN_H) }
+          : b));
       } else {
         setTextBlocks(prev => prev.map(b => b.id === target.id
-          ? { ...b, xRatio: Math.min(Math.max(origXR + dx, 0), 1 - TXT_W_RATIO), yRatio: Math.min(Math.max(origYR + dy, 0), 1 - TXT_H_RATIO) }
+          ? { ...b, xRatio: Math.min(Math.max(origXR + dx, 0), 1 - b.wRatio), yRatio: Math.min(Math.max(origYR + dy, 0), 1 - b.hRatio) }
           : b));
       }
     };
@@ -179,6 +202,7 @@ export default function PdfPlacementEditor({ pdfUrl, signerName, withParaphe, on
     setTextBlocks(prev => [...prev, {
       id, page: currentPage,
       xRatio: 0.1, yRatio: 0.3,
+      wRatio: TXT_W_INIT, hRatio: TXT_H_INIT,
       text: "", fontSize: 11,
     }]);
     setEditingTextId(id);
@@ -285,6 +309,8 @@ export default function PdfPlacementEditor({ pdfUrl, signerName, withParaphe, on
                     isEditing={editingTextId === tb.id}
                     onMouseDown={(e) => { if (editingTextId !== tb.id) onMouseDownText(e, tb.id); }}
                     onTouchStart={(e) => { if (editingTextId !== tb.id) onTouchStartText(e, tb.id); }}
+                    onMouseDownResize={(e) => onMouseDownResize(e, tb.id)}
+                    onTouchStartResize={(e) => onTouchStartResize(e, tb.id)}
                     onClick={() => setEditingTextId(tb.id)}
                     onChange={(text) => setTextBlocks(prev => prev.map(b => b.id === tb.id ? { ...b, text } : b))}
                     onFontSize={(fs) => setTextBlocks(prev => prev.map(b => b.id === tb.id ? { ...b, fontSize: fs } : b))}
@@ -309,10 +335,12 @@ export default function PdfPlacementEditor({ pdfUrl, signerName, withParaphe, on
   );
 }
 
-function TextDragBlock({ block, isEditing, onMouseDown, onTouchStart, onClick, onChange, onFontSize, onDelete, onBlur }: {
+function TextDragBlock({ block, isEditing, onMouseDown, onTouchStart, onMouseDownResize, onTouchStartResize, onClick, onChange, onFontSize, onDelete, onBlur }: {
   block: TextBlock; isEditing: boolean;
   onMouseDown: (e: React.MouseEvent) => void;
   onTouchStart: (e: React.TouchEvent) => void;
+  onMouseDownResize: (e: React.MouseEvent) => void;
+  onTouchStartResize: (e: React.TouchEvent) => void;
   onClick: () => void;
   onChange: (text: string) => void;
   onFontSize: (fs: number) => void;
@@ -321,14 +349,14 @@ function TextDragBlock({ block, isEditing, onMouseDown, onTouchStart, onClick, o
 }) {
   return (
     <div
-      style={{ touchAction: "none", position: "absolute", left: `${block.xRatio * 100}%`, top: `${block.yRatio * 100}%`, width: `${TXT_W_RATIO * 100}%`, minHeight: `${TXT_H_RATIO * 100}%`, border: `1.5px solid ${isEditing ? "#fbbf24" : "rgba(251,191,36,0.6)"}`, background: "rgba(255,255,240,0.92)", boxShadow: "0 2px 8px rgba(0,0,0,0.3)", boxSizing: "border-box", overflow: "visible" }}
+      style={{ touchAction: "none", position: "absolute", left: `${block.xRatio * 100}%`, top: `${block.yRatio * 100}%`, width: `${block.wRatio * 100}%`, height: `${block.hRatio * 100}%`, border: `1.5px solid ${isEditing ? "#fbbf24" : "rgba(251,191,36,0.6)"}`, background: "rgba(255,255,240,0.92)", boxShadow: "0 2px 8px rgba(0,0,0,0.3)", boxSizing: "border-box", overflow: "hidden" }}
       onMouseDown={isEditing ? undefined : onMouseDown}
       onTouchStart={isEditing ? undefined : onTouchStart}
       onClick={onClick}
     >
       {/* toolbar when editing */}
       {isEditing && (
-        <div style={{ position: "absolute", top: -26, left: 0, display: "flex", gap: 3, background: "rgba(24,24,27,0.97)", border: "1px solid rgba(251,191,36,0.4)", borderRadius: 2, padding: "2px 4px" }}>
+        <div style={{ position: "absolute", top: -26, left: 0, zIndex: 10, display: "flex", gap: 3, background: "rgba(24,24,27,0.97)", border: "1px solid rgba(251,191,36,0.4)", borderRadius: 2, padding: "2px 4px" }}>
           {[8, 10, 12, 14, 16].map(fs => (
             <button key={fs} onClick={(e) => { e.stopPropagation(); onFontSize(fs); }}
               style={{ padding: "1px 4px", background: block.fontSize === fs ? "rgba(251,191,36,0.3)" : "transparent", border: "none", color: "#fbbf24", fontFamily: "Orbitron,monospace", fontSize: 7, cursor: "pointer", borderRadius: 1 }}>
@@ -341,9 +369,9 @@ function TextDragBlock({ block, isEditing, onMouseDown, onTouchStart, onClick, o
           </button>
         </div>
       )}
-      {/* drag handle when not editing */}
+      {/* drag label */}
       {!isEditing && (
-        <div style={{ position: "absolute", top: 1, right: 3, fontFamily: "Orbitron,monospace", fontSize: "clamp(4px,0.8vw,5px)", color: "#b45309", letterSpacing: 1, cursor: "grab" }}>TEXTE ⠿</div>
+        <div style={{ position: "absolute", top: 1, right: 18, fontFamily: "Orbitron,monospace", fontSize: "clamp(4px,0.8vw,5px)", color: "#b45309", letterSpacing: 1, cursor: "grab", pointerEvents: "none" }}>TEXTE</div>
       )}
       {isEditing ? (
         <textarea
@@ -353,13 +381,24 @@ function TextDragBlock({ block, isEditing, onMouseDown, onTouchStart, onClick, o
           onBlur={onBlur}
           onClick={e => e.stopPropagation()}
           placeholder="Saisir le texte..."
-          style={{ width: "100%", minHeight: 40, background: "transparent", border: "none", outline: "none", fontFamily: "Helvetica,Arial,sans-serif", fontSize: block.fontSize, color: "#111", resize: "none", padding: "4px 6px", boxSizing: "border-box", cursor: "text" }}
+          style={{ width: "100%", height: "100%", background: "transparent", border: "none", outline: "none", fontFamily: "Helvetica,Arial,sans-serif", fontSize: block.fontSize, color: "#111", resize: "none", padding: "3px 5px", boxSizing: "border-box", cursor: "text" }}
         />
       ) : (
-        <div style={{ fontFamily: "Helvetica,Arial,sans-serif", fontSize: block.fontSize, color: "#111", padding: "3px 6px", minHeight: 20, cursor: "grab", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+        <div style={{ fontFamily: "Helvetica,Arial,sans-serif", fontSize: block.fontSize, color: "#111", padding: "3px 5px", height: "100%", cursor: "grab", whiteSpace: "pre-wrap", wordBreak: "break-word", overflow: "hidden" }}>
           {block.text || <span style={{ color: "#aaa", fontSize: 9, fontStyle: "italic" }}>Cliquer pour éditer</span>}
         </div>
       )}
+      {/* Resize handle — bottom-right corner */}
+      <div
+        onMouseDown={onMouseDownResize}
+        onTouchStart={onTouchStartResize}
+        style={{ position: "absolute", bottom: 0, right: 0, width: 14, height: 14, cursor: "se-resize", touchAction: "none", display: "flex", alignItems: "center", justifyContent: "center" }}
+      >
+        <svg width="10" height="10" viewBox="0 0 10 10" style={{ display: "block" }}>
+          <line x1="3" y1="10" x2="10" y2="3" stroke="#b45309" strokeWidth="1.5" />
+          <line x1="6" y1="10" x2="10" y2="6" stroke="#b45309" strokeWidth="1.5" />
+        </svg>
+      </div>
     </div>
   );
 }
