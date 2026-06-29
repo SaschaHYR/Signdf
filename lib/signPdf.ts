@@ -6,13 +6,23 @@ export interface PlacementCoord {
   yRatio: number; // 0-1 from top
 }
 
+export interface TextOverlay {
+  id: string;
+  page: number;
+  xRatio: number;
+  yRatio: number; // 0-1 from top
+  text: string;
+  fontSize: number;
+}
+
 export interface SignatureOptions {
   prenom: string;
   nom: string;
   token: string;
   placement?: PlacementCoord;
   paraphe?: PlacementCoord;
-  fieldValues?: Record<string, string>; // AcroForm field values to fill before signing
+  fieldValues?: Record<string, string>;
+  textOverlays?: TextOverlay[];
 }
 
 export async function signPdf(
@@ -59,6 +69,26 @@ export async function signPdf(
   const fontHelv   = await doc.embedFont(StandardFonts.Helvetica);
 
   const pages = doc.getPages();
+
+  // Draw free text overlays
+  if (options.textOverlays?.length) {
+    for (const overlay of options.textOverlays) {
+      if (!overlay.text.trim()) continue;
+      const pageIdx = Math.min(overlay.page, pages.length - 1);
+      const page = pages[pageIdx];
+      const { width, height } = page.getSize();
+      const x = overlay.xRatio * width;
+      const y = (1 - overlay.yRatio) * height;
+      page.drawText(overlay.text, {
+        x: Math.max(2, Math.min(x, width - 200)),
+        y: Math.max(2, Math.min(y, height - overlay.fontSize)),
+        size: overlay.fontSize,
+        font: fontRoman,
+        color: rgb(0.05, 0.05, 0.05),
+      });
+    }
+  }
+
   const fullName = `${options.prenom} ${options.nom}`;
   const dateStr = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
 

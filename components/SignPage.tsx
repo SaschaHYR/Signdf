@@ -2,7 +2,7 @@
 
 import { useEffect, useState, lazy, Suspense } from "react";
 import { getSignatureDoc, getOriginalPdfUrl, uploadSignedPdf, markAsSigned, SignatureDoc, sha256Hex } from "@/lib/uploadPdf";
-import { signPdf, downloadBytes, PlacementCoord } from "@/lib/signPdf";
+import { signPdf, downloadBytes, PlacementCoord, TextOverlay } from "@/lib/signPdf";
 import { detectPdfFields, signatureFieldToPlacement, DetectionResult } from "@/lib/detectPdfFields";
 import { AnimatedBackground } from "@/components/ui/animated-background";
 import { sendSignatureEmail } from "@/lib/emailjs";
@@ -26,6 +26,7 @@ export default function SignPage({ token }: { token: string }) {
   const [parPlacement, setParPlacement] = useState<PlacementCoord | null>(null);
   const [detection, setDetection] = useState<DetectionResult | null>(null);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+  const [textOverlays, setTextOverlays] = useState<TextOverlay[]>([]);
 
   useEffect(() => {
     async function load() {
@@ -73,15 +74,15 @@ export default function SignPage({ token }: { token: string }) {
     setPageStatus("placing");
   };
 
-  const handlePlacementConfirm = (sig: PlacementCoord, par: PlacementCoord | null) => {
+  const handlePlacementConfirm = (sig: PlacementCoord, par: PlacementCoord | null, overlays: TextOverlay[]) => {
     setSigPlacement(sig);
     setParPlacement(par);
+    setTextOverlays(overlays);
     setPageStatus("ready");
-    // immediately sign after placement
-    handleSign(sig, par);
+    handleSign(sig, par, overlays);
   };
 
-  const handleSign = async (sigPlace?: PlacementCoord, parPlace?: PlacementCoord | null) => {
+  const handleSign = async (sigPlace?: PlacementCoord, parPlace?: PlacementCoord | null, overlays?: TextOverlay[]) => {
     if (!prenom.trim() || !nom.trim()) { setErrorMsg("Prénom et nom requis."); return; }
     if (!email.trim() || !email.includes("@")) { setErrorMsg("Email valide requis."); return; }
     if (!sigDoc) return;
@@ -107,6 +108,7 @@ export default function SignPage({ token }: { token: string }) {
         placement: placement ?? undefined,
         paraphe: paraphe ?? undefined,
         fieldValues,
+        textOverlays: overlays ?? textOverlays,
       });
       const signedFileUrl = await uploadSignedPdf(bytes, token);
 
