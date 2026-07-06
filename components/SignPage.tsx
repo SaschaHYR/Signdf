@@ -40,7 +40,7 @@ export default function SignPage({ token }: { token: string }) {
           setPageStatus("already-signed");
           return;
         }
-        const url = getOriginalPdfUrl(token);
+        const url = await getOriginalPdfUrl(token);
         setSigDoc(docData);
         setPdfUrl(url);
 

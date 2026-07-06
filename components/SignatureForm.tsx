@@ -55,8 +55,8 @@ export default function SignatureForm() {
     setErrorMsg("");
     try {
       const token = crypto.randomUUID();
-      await uploadOriginalPdf(file, token);
-      await createSignatureDoc(token, emailExpediteur.trim(), file.name);
+      const originalPdfUrl = await uploadOriginalPdf(file, token);
+      await createSignatureDoc(token, emailExpediteur.trim(), file.name, originalPdfUrl);
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
       setShareUrl(`${appUrl}/sign/${token}`);
       setStatus("share");
