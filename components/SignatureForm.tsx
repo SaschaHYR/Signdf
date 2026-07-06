@@ -1,32 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { uploadOriginalPdf, createSignatureDoc } from "@/lib/uploadPdf";
+import { uploadOriginalPdf, createSignatureDoc, subscribeSignedCount } from "@/lib/uploadPdf";
 import { AnimatedBackground } from "@/components/ui/animated-background";
-import { getSupabase } from "@/lib/supabase";
 import { AnimateNumber } from "@/components/ui/animated-blur-number";
 
 type Status = "idle" | "uploading" | "share" | "error";
 
 function useSignatureCount() {
   const [count, setCount] = useState(0);
-
   useEffect(() => {
-    const sb = getSupabase();
-
-    sb.from("signatures").select("*", { count: "exact", head: true }).eq("status", "signed")
-      .then(({ count: c }) => { if (c !== null) setCount(c); });
-
-    const channel = sb.channel("signatures-count")
-      .on("postgres_changes", { event: "*", schema: "public", table: "signatures" }, () => {
-        sb.from("signatures").select("*", { count: "exact", head: true }).eq("status", "signed")
-          .then(({ count: c }) => { if (c !== null) setCount(c); });
-      })
-      .subscribe();
-
-    return () => { sb.removeChannel(channel); };
+    const unsub = subscribeSignedCount(setCount);
+    return unsub;
   }, []);
-
   return count;
 }
 
