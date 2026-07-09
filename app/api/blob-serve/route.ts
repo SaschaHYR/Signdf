@@ -11,7 +11,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   try {
     const downloadUrl = await getDownloadUrl(blobUrl);
-    return NextResponse.redirect(downloadUrl);
+    const res = await fetch(downloadUrl);
+    if (!res.ok) {
+      return new NextResponse("Not found", { status: 404 });
+    }
+    const buffer = await res.arrayBuffer();
+    return new NextResponse(buffer, {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Cache-Control": "private, no-cache",
+      },
+    });
   } catch (err) {
     console.error("blob-serve error:", err);
     return new NextResponse("Not found", { status: 404 });
