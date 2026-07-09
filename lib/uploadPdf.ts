@@ -19,17 +19,17 @@ export interface SignatureDoc {
   timestamp_token?: string;
   timestamp_date?: string;
   expires_at?: string;
-  original_pdf_pathname?: string;
+  original_pdf_url?: string;
 }
 
 const COL = "signatures";
 
 async function blobUpload(pathname: string, body: File | Blob): Promise<string> {
-  const { pathname: storedPathname } = await upload(pathname, body, {
+  const { url } = await upload(pathname, body, {
     access: "private",
     handleUploadUrl: "/api/blob-upload",
   });
-  return storedPathname;
+  return url;
 }
 
 export async function uploadOriginalPdf(file: File, token: string): Promise<string> {
@@ -40,7 +40,7 @@ export async function createSignatureDoc(
   token: string,
   emailExpediteur: string,
   fileName: string,
-  originalPdfPathname?: string,
+  originalPdfUrl?: string,
 ): Promise<void> {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
   await setDoc(doc(db, COL, token), {
@@ -50,7 +50,7 @@ export async function createSignatureDoc(
     status: "pending",
     created_at: new Date().toISOString(),
     expires_at: expiresAt,
-    ...(originalPdfPathname ? { original_pdf_pathname: originalPdfPathname } : {}),
+    ...(originalPdfUrl ? { original_pdf_url: originalPdfUrl } : {}),
   });
 }
 
@@ -69,16 +69,16 @@ export async function getOriginalPdfUrl(token: string): Promise<string> {
   const snap = await getDoc(doc(db, COL, token));
   if (!snap.exists()) throw new Error("Document not found");
   const data = snap.data() as SignatureDoc;
-  if (data.original_pdf_pathname) {
-    return `/api/blob-serve?pathname=${encodeURIComponent(data.original_pdf_pathname)}`;
+  if (data.original_pdf_url) {
+    return `/api/blob-serve?url=${encodeURIComponent(data.original_pdf_url)}`;
   }
-  throw new Error("No original_pdf_pathname stored for this document");
+  throw new Error("No original_pdf_url stored for this document");
 }
 
 export async function uploadSignedPdf(bytes: Uint8Array, token: string): Promise<string> {
   const blob = new Blob([bytes as unknown as BlobPart], { type: "application/pdf" });
-  const pathname = await blobUpload(`pdfs/${token}/signed.pdf`, blob);
-  return `/api/blob-serve?pathname=${encodeURIComponent(pathname)}`;
+  const blobUrl = await blobUpload(`pdfs/${token}/signed.pdf`, blob);
+  return `/api/blob-serve?url=${encodeURIComponent(blobUrl)}`;
 }
 
 export async function markAsSigned(

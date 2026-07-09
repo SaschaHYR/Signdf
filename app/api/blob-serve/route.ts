@@ -4,15 +4,16 @@ import { type NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const pathname = request.nextUrl.searchParams.get("pathname");
-  if (!pathname) {
-    return NextResponse.json({ error: "Missing pathname" }, { status: 400 });
+  const blobUrl = request.nextUrl.searchParams.get("url");
+  if (!blobUrl) {
+    return NextResponse.json({ error: "Missing url" }, { status: 400 });
   }
 
   try {
-    const url = await getDownloadUrl(pathname);
-    return NextResponse.redirect(url);
-  } catch {
+    const downloadUrl = await getDownloadUrl(blobUrl);
+    return NextResponse.redirect(downloadUrl);
+  } catch (err) {
+    console.error("blob-serve error:", err);
     return new NextResponse("Not found", { status: 404 });
   }
 }
