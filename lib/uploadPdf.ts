@@ -23,19 +23,14 @@ export interface SignatureDoc {
 
 const COL = "signatures";
 
-async function blobPut(pathname: string, body: ArrayBuffer | Blob): Promise<string> {
-  const res = await fetch(`/api/blob-upload?pathname=${encodeURIComponent(pathname)}`, {
-    method: "POST",
-    headers: { "content-type": "application/pdf" },
-    body,
-  });
-  if (!res.ok) throw new Error(`Upload failed: ${res.statusText}`);
-  const { url } = await res.json() as { url: string };
-  return url;
-}
+import { upload } from "@vercel/blob/client";
 
 export async function uploadOriginalPdf(file: File, token: string): Promise<string> {
-  return blobPut(`pdfs/${token}/original.pdf`, file);
+  const { url } = await upload(`pdfs/${token}/original.pdf`, file, {
+    access: "public",
+    handleUploadUrl: "/api/blob-upload",
+  });
+  return url;
 }
 
 export async function createSignatureDoc(
@@ -79,7 +74,11 @@ export async function getOriginalPdfUrl(token: string): Promise<string> {
 
 export async function uploadSignedPdf(bytes: Uint8Array, token: string): Promise<string> {
   const blob = new Blob([bytes as unknown as BlobPart], { type: "application/pdf" });
-  return blobPut(`pdfs/${token}/signed.pdf`, blob);
+  const { url } = await upload(`pdfs/${token}/signed.pdf`, blob, {
+    access: "public",
+    handleUploadUrl: "/api/blob-upload",
+  });
+  return url;
 }
 
 export async function markAsSigned(

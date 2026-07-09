@@ -1,21 +1,30 @@
-import { put } from "@vercel/blob";
+import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const { searchParams } = new URL(req.url);
-  const pathname = searchParams.get("pathname");
+  const body = (await req.json()) as HandleUploadBody;
 
-  if (!pathname) {
-    return NextResponse.json({ error: "pathname required" }, { status: 400 });
+  try {
+    const jsonResponse = await handleUpload({
+      body,
+      request: req,
+      onBeforeGenerateToken: async (pathname) => ({
+        allowedContentTypes: ["application/pdf"],
+        maximumSizeInBytes: 50 * 1024 * 1024, // 50MB
+        pathname,
+      }),
+      onUploadCompleted: async () => {
+        // no-op
+      },
+    });
+
+    return NextResponse.json(jsonResponse);
+  } catch (error) {
+    return NextResponse.json(
+      { error: (error as Error).message },
+      { status: 400 }
+    );
   }
-
-  const contentType = req.headers.get("content-type") ?? "application/pdf";
-  const body = await req.arrayBuffer();
-
-  const { url } = await put(pathname, body, {
-    access: "public",
-    contentType,
-  });
-
-  return NextResponse.json({ url });
 }
