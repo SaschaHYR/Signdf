@@ -4,6 +4,7 @@ import {
   query, where, onSnapshot,
   type Unsubscribe,
 } from "firebase/firestore";
+import { upload } from "@vercel/blob/client";
 
 export interface SignatureDoc {
   token: string;
@@ -18,26 +19,28 @@ export interface SignatureDoc {
   timestamp_token?: string;
   timestamp_date?: string;
   expires_at?: string;
-  original_pdf_url?: string;
+  original_pdf_pathname?: string;
 }
 
 const COL = "signatures";
 
-import { upload } from "@vercel/blob/client";
-
-export async function uploadOriginalPdf(file: File, token: string): Promise<string> {
-  const { url } = await upload(`pdfs/${token}/original.pdf`, file, {
-    access: "public",
+async function blobUpload(pathname: string, body: File | Blob): Promise<string> {
+  const { pathname: storedPathname } = await upload(pathname, body, {
+    access: "private",
     handleUploadUrl: "/api/blob-upload",
   });
-  return url;
+  return storedPathname;
+}
+
+export async function uploadOriginalPdf(file: File, token: string): Promise<string> {
+  return blobUpload(`pdfs/${token}/original.pdf`, file);
 }
 
 export async function createSignatureDoc(
   token: string,
   emailExpediteur: string,
   fileName: string,
-  originalPdfUrl?: string,
+  originalPdfPathname?: string,
 ): Promise<void> {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
   await setDoc(doc(db, COL, token), {
@@ -47,7 +50,7 @@ export async function createSignatureDoc(
     status: "pending",
     created_at: new Date().toISOString(),
     expires_at: expiresAt,
-    ...(originalPdfUrl ? { original_pdf_url: originalPdfUrl } : {}),
+    ...(originalPdfPathname ? { original_pdf_pathname: originalPdfPathname } : {}),
   });
 }
 
@@ -55,7 +58,6 @@ export async function getSignatureDoc(token: string): Promise<SignatureDoc | nul
   const snap = await getDoc(doc(db, COL, token));
   if (!snap.exists()) return null;
   const data = snap.data() as SignatureDoc;
-  // Soft-expire on read — no cron needed
   if (data.expires_at && new Date(data.expires_at) < new Date() && data.status === "pending") {
     await updateDoc(doc(db, COL, token), { status: "expired" });
     return { ...data, status: "expired" };
@@ -67,18 +69,16 @@ export async function getOriginalPdfUrl(token: string): Promise<string> {
   const snap = await getDoc(doc(db, COL, token));
   if (!snap.exists()) throw new Error("Document not found");
   const data = snap.data() as SignatureDoc;
-  if (data.original_pdf_url) return data.original_pdf_url;
-  // Fallback: reconstruct Vercel Blob URL pattern (shouldn't happen for new docs)
-  throw new Error("No original_pdf_url stored for this document");
+  if (data.original_pdf_pathname) {
+    return `/api/blob-serve?pathname=${encodeURIComponent(data.original_pdf_pathname)}`;
+  }
+  throw new Error("No original_pdf_pathname stored for this document");
 }
 
 export async function uploadSignedPdf(bytes: Uint8Array, token: string): Promise<string> {
   const blob = new Blob([bytes as unknown as BlobPart], { type: "application/pdf" });
-  const { url } = await upload(`pdfs/${token}/signed.pdf`, blob, {
-    access: "public",
-    handleUploadUrl: "/api/blob-upload",
-  });
-  return url;
+  const pathname = await blobUpload(`pdfs/${token}/signed.pdf`, blob);
+  return `/api/blob-serve?pathname=${encodeURIComponent(pathname)}`;
 }
 
 export async function markAsSigned(
