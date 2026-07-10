@@ -9,13 +9,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   try {
     const jsonResponse = await handleUpload({
+      token: process.env.BLOB_PUBLIC_READ_WRITE_TOKEN,
       body,
       request: req,
       onBeforeGenerateToken: async (pathname) => ({
         allowedContentTypes: ["application/pdf"],
         maximumSizeInBytes: 50 * 1024 * 1024,
         pathname,
-        access: "private",
+        access: "public",
       }),
       onUploadCompleted: async () => {},
     });

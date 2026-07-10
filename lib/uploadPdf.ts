@@ -26,7 +26,7 @@ const COL = "signatures";
 
 async function blobUpload(pathname: string, body: File | Blob): Promise<string> {
   const { url } = await upload(pathname, body, {
-    access: "private",
+    access: "public",
     handleUploadUrl: "/api/blob-upload",
   });
   return url;
@@ -69,16 +69,13 @@ export async function getOriginalPdfUrl(token: string): Promise<string> {
   const snap = await getDoc(doc(db, COL, token));
   if (!snap.exists()) throw new Error("Document not found");
   const data = snap.data() as SignatureDoc;
-  if (data.original_pdf_url) {
-    return `/api/blob-serve?url=${encodeURIComponent(data.original_pdf_url)}`;
-  }
+  if (data.original_pdf_url) return data.original_pdf_url;
   throw new Error("No original_pdf_url stored for this document");
 }
 
 export async function uploadSignedPdf(bytes: Uint8Array, token: string): Promise<string> {
   const blob = new Blob([bytes as unknown as BlobPart], { type: "application/pdf" });
-  const blobUrl = await blobUpload(`pdfs/${token}/signed.pdf`, blob);
-  return `/api/blob-serve?url=${encodeURIComponent(blobUrl)}`;
+  return blobUpload(`pdfs/${token}/signed.pdf`, blob);
 }
 
 export async function markAsSigned(
