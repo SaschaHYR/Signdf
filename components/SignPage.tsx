@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, lazy, Suspense } from "react";
+import { useEffect, useState, lazy, Suspense, useCallback } from "react";
+import SignatureCanvas from "./SignatureCanvas";
 import { getSignatureDoc, getOriginalPdfUrl, uploadSignedPdf, markAsSigned, SignatureDoc, sha256Hex } from "@/lib/uploadPdf";
 import { signPdf, downloadBytes, PlacementCoord, TextOverlay } from "@/lib/signPdf";
 import { detectPdfFields, signatureFieldToPlacement, DetectionResult } from "@/lib/detectPdfFields";
@@ -27,6 +28,9 @@ export default function SignPage({ token }: { token: string }) {
   const [detection, setDetection] = useState<DetectionResult | null>(null);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [textOverlays, setTextOverlays] = useState<TextOverlay[]>([]);
+  const [sigMode, setSigMode] = useState<"typed" | "drawn">("typed");
+  const [drawnSignature, setDrawnSignature] = useState<string | null>(null);
+  const handleDrawnChange = useCallback((v: string | null) => setDrawnSignature(v), []);
 
   useEffect(() => {
     async function load() {
@@ -109,6 +113,7 @@ export default function SignPage({ token }: { token: string }) {
         paraphe: paraphe ?? undefined,
         fieldValues,
         textOverlays: overlays ?? textOverlays,
+        signatureImageDataUrl: sigMode === "drawn" && drawnSignature ? drawnSignature : undefined,
       });
       const signedFileUrl = await uploadSignedPdf(bytes, token);
 
@@ -252,21 +257,36 @@ export default function SignPage({ token }: { token: string }) {
                 </div>
               )}
 
-              <div style={{ marginBottom: 16, padding: "12px 14px", background: "rgba(224,48,48,0.03)", border: "1px solid rgba(224,48,48,0.15)", borderRadius: 2 }}>
-                <div style={{ fontFamily: "Orbitron,monospace", fontSize: 8, letterSpacing: 2, textTransform: "uppercase", color: "var(--red)", marginBottom: 8 }}>Aperçu de votre signature</div>
-                <div style={{ fontFamily: "'Great Vibes',cursive", fontSize: 26, color: "#fff", lineHeight: 1.2 }}>
-                  {prenom || "Prénom"} {nom || "Nom"}
+              <div style={{ marginBottom: 16, border: "1px solid rgba(224,48,48,0.15)", borderRadius: 2, overflow: "hidden" }}>
+                {/* Tab toggle */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", borderBottom: "1px solid rgba(224,48,48,0.15)" }}>
+                  {(["typed", "drawn"] as const).map((mode) => (
+                    <button key={mode} onClick={() => setSigMode(mode)} style={{ padding: "8px 0", background: sigMode === mode ? "rgba(224,48,48,0.08)" : "transparent", border: "none", borderRight: mode === "typed" ? "1px solid rgba(224,48,48,0.15)" : "none", color: sigMode === mode ? "var(--red)" : "var(--zinc-500)", fontFamily: "Orbitron,monospace", fontSize: 8, letterSpacing: 2, textTransform: "uppercase", cursor: "pointer" }}>
+                      {mode === "typed" ? "✦ TEXTE" : "✍ DESSINÉ"}
+                    </button>
+                  ))}
                 </div>
-                {withParaphe && (
-                  <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ fontFamily: "Orbitron,monospace", fontSize: 8, letterSpacing: 2, textTransform: "uppercase", color: "#22C55E" }}>Paraphe :</div>
-                    <div style={{ fontFamily: "'Pinyon Script',cursive", fontSize: 24, color: "#fff" }}>
-                      {(prenom[0] ?? "") + (nom[0] ?? "")}
-                    </div>
+                <div style={{ padding: "12px 14px", background: "rgba(224,48,48,0.03)" }}>
+                  {sigMode === "typed" ? (
+                    <>
+                      <div style={{ fontFamily: "'Great Vibes',cursive", fontSize: 26, color: "#fff", lineHeight: 1.2 }}>
+                        {prenom || "Prénom"} {nom || "Nom"}
+                      </div>
+                      {withParaphe && (
+                        <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
+                          <div style={{ fontFamily: "Orbitron,monospace", fontSize: 8, letterSpacing: 2, textTransform: "uppercase", color: "#22C55E" }}>Paraphe :</div>
+                          <div style={{ fontFamily: "'Pinyon Script',cursive", fontSize: 24, color: "#fff" }}>
+                            {(prenom[0] ?? "") + (nom[0] ?? "")}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <SignatureCanvas onChange={handleDrawnChange} />
+                  )}
+                  <div style={{ fontFamily: "Rajdhani,sans-serif", fontSize: 11, color: "var(--zinc-400)", marginTop: 8 }}>
+                    {new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
                   </div>
-                )}
-                <div style={{ fontFamily: "Rajdhani,sans-serif", fontSize: 11, color: "var(--zinc-400)", marginTop: 4 }}>
-                  {new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
                 </div>
               </div>
 
