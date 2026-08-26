@@ -6,6 +6,12 @@ import {
 } from "firebase/firestore";
 import { upload } from "@vercel/blob/client";
 
+export interface PlacementCoordData {
+  page: number;
+  xRatio: number;
+  yRatio: number;
+}
+
 export interface SignatureDoc {
   token: string;
   email_expediteur: string;
@@ -20,6 +26,8 @@ export interface SignatureDoc {
   timestamp_date?: string;
   expires_at?: string;
   original_pdf_url?: string;
+  sig_placement?: PlacementCoordData;
+  par_placement?: PlacementCoordData;
 }
 
 const COL = "signatures";
@@ -41,6 +49,8 @@ export async function createSignatureDoc(
   emailExpediteur: string,
   fileName: string,
   originalPdfUrl?: string,
+  sigPlacement?: PlacementCoordData,
+  parPlacement?: PlacementCoordData,
 ): Promise<void> {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
   await setDoc(doc(db, COL, token), {
@@ -50,7 +60,9 @@ export async function createSignatureDoc(
     status: "pending",
     created_at: new Date().toISOString(),
     expires_at: expiresAt,
-    ...(originalPdfUrl ? { original_pdf_url: originalPdfUrl } : {}),
+    ...(originalPdfUrl  ? { original_pdf_url: originalPdfUrl }  : {}),
+    ...(sigPlacement    ? { sig_placement: sigPlacement }        : {}),
+    ...(parPlacement    ? { par_placement: parPlacement }        : {}),
   });
 }
 

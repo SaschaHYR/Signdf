@@ -28,7 +28,7 @@ export default function SignPage({ token }: { token: string }) {
   const [detection, setDetection] = useState<DetectionResult | null>(null);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [textOverlays, setTextOverlays] = useState<TextOverlay[]>([]);
-  const [sigMode, setSigMode] = useState<"typed" | "drawn">("typed");
+  const [sigMode, setSigMode] = useState<"typed" | "drawn">("drawn");
   const [drawnSignature, setDrawnSignature] = useState<string | null>(null);
   const handleDrawnChange = useCallback((v: string | null) => setDrawnSignature(v), []);
 
@@ -48,13 +48,17 @@ export default function SignPage({ token }: { token: string }) {
         setSigDoc(docData);
         setPdfUrl(url);
 
+        // Use sender-defined placements if available
+        if (docData.sig_placement) setSigPlacement(docData.sig_placement);
+        if (docData.par_placement) setParPlacement(docData.par_placement);
+
         // Detect AcroForm fields
         try {
           const result = await detectPdfFields(url);
           setDetection(result);
           if (result.hasForm) {
-            // Pre-position signature at detected field if present
-            if (result.signatureField) {
+            // Pre-position signature at detected field if present (only if sender didn't set one)
+            if (result.signatureField && !docData.sig_placement) {
               setSigPlacement(signatureFieldToPlacement(result.signatureField));
             }
             setPageStatus("form");
@@ -260,9 +264,9 @@ export default function SignPage({ token }: { token: string }) {
               <div style={{ marginBottom: 16, border: "1px solid rgba(224,48,48,0.15)", borderRadius: 2, overflow: "hidden" }}>
                 {/* Tab toggle */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", borderBottom: "1px solid rgba(224,48,48,0.15)" }}>
-                  {(["typed", "drawn"] as const).map((mode) => (
-                    <button key={mode} onClick={() => setSigMode(mode)} style={{ padding: "8px 0", background: sigMode === mode ? "rgba(224,48,48,0.08)" : "transparent", border: "none", borderRight: mode === "typed" ? "1px solid rgba(224,48,48,0.15)" : "none", color: sigMode === mode ? "var(--red)" : "var(--zinc-500)", fontFamily: "Orbitron,monospace", fontSize: 8, letterSpacing: 2, textTransform: "uppercase", cursor: "pointer" }}>
-                      {mode === "typed" ? "✦ TEXTE" : "✍ DESSINÉ"}
+                  {(["drawn", "typed"] as const).map((mode) => (
+                    <button key={mode} onClick={() => setSigMode(mode)} style={{ padding: "8px 0", background: sigMode === mode ? "rgba(224,48,48,0.08)" : "transparent", border: "none", borderRight: mode === "drawn" ? "1px solid rgba(224,48,48,0.15)" : "none", color: sigMode === mode ? "var(--red)" : "var(--zinc-500)", fontFamily: "Orbitron,monospace", fontSize: 8, letterSpacing: 2, textTransform: "uppercase", cursor: "pointer" }}>
+                      {mode === "drawn" ? "✍ DESSINÉ" : "✦ TEXTE"}
                     </button>
                   ))}
                 </div>
@@ -320,14 +324,16 @@ export default function SignPage({ token }: { token: string }) {
                 </div>
               )}
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 0 }}>
-                <button
-                  onClick={handleOpenPlacement}
-                  disabled={pageStatus === "signing"}
-                  style={{ padding: "13px 10px", background: "transparent", border: "1px solid rgba(224,48,48,0.4)", borderRadius: 2, color: "var(--red)", fontFamily: "Orbitron,monospace", fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", cursor: pageStatus === "signing" ? "not-allowed" : "pointer", opacity: pageStatus === "signing" ? 0.5 : 1 }}
-                >
-                  ✦ PLACER
-                </button>
+              <div style={{ display: "grid", gridTemplateColumns: sigDoc?.sig_placement ? "1fr" : "1fr 1fr", gap: 10, marginBottom: 0 }}>
+                {!sigDoc?.sig_placement && (
+                  <button
+                    onClick={handleOpenPlacement}
+                    disabled={pageStatus === "signing"}
+                    style={{ padding: "13px 10px", background: "transparent", border: "1px solid rgba(224,48,48,0.4)", borderRadius: 2, color: "var(--red)", fontFamily: "Orbitron,monospace", fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", cursor: pageStatus === "signing" ? "not-allowed" : "pointer", opacity: pageStatus === "signing" ? 0.5 : 1 }}
+                  >
+                    ✦ PLACER
+                  </button>
+                )}
                 <button
                   onClick={() => handleSign()}
                   disabled={pageStatus === "signing"}
@@ -338,9 +344,11 @@ export default function SignPage({ token }: { token: string }) {
                   ) : "✍ SIGNER"}
                 </button>
               </div>
-              <div style={{ marginTop: 6, textAlign: "center", fontFamily: "Rajdhani,sans-serif", fontSize: 10, color: "var(--zinc-500)" }}>
-                SIGNER place la signature en bas à droite de la dernière page · PLACER permet de choisir la position
-              </div>
+              {!sigDoc?.sig_placement && (
+                <div style={{ marginTop: 6, textAlign: "center", fontFamily: "Rajdhani,sans-serif", fontSize: 10, color: "var(--zinc-500)" }}>
+                  SIGNER place la signature en bas à droite de la dernière page · PLACER permet de choisir la position
+                </div>
+              )}
               <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes dotPulse{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
             </>
           )}

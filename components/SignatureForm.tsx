@@ -1,11 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { uploadOriginalPdf, createSignatureDoc, subscribeSignedCount } from "@/lib/uploadPdf";
+import { useCallback, useEffect, useRef, useState, lazy, Suspense } from "react";
+import { uploadOriginalPdf, createSignatureDoc, subscribeSignedCount, PlacementCoordData } from "@/lib/uploadPdf";
+import { PlacementCoord } from "@/lib/signPdf";
 import { AnimatedBackground } from "@/components/ui/animated-background";
 import { AnimateNumber } from "@/components/ui/animated-blur-number";
 
-type Status = "idle" | "uploading" | "share" | "error";
+const PdfPlacementEditor = lazy(() => import("./PdfPlacementEditor"));
+
+type Status = "idle" | "uploading" | "placing" | "share" | "error";
 
 function useSignatureCount() {
   const [count, setCount] = useState(0);
@@ -25,6 +28,8 @@ export default function SignatureForm() {
   const [dragging, setDragging] = useState(false);
   const [copied, setCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const pendingToken = useRef<string>("");
+  const pendingPdfUrl = useRef<string>("");
 
   const handleFile = useCallback((f: File) => {
     if (!f.name.toLowerCase().endsWith(".pdf") || f.type !== "application/pdf") {
@@ -56,14 +61,22 @@ export default function SignatureForm() {
     try {
       const token = crypto.randomUUID();
       const originalPdfUrl = await uploadOriginalPdf(file, token);
-      await createSignatureDoc(token, emailExpediteur.trim(), file.name, originalPdfUrl);
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
-      setShareUrl(`${appUrl}/sign/${token}`);
-      setStatus("share");
+      pendingToken.current = token;
+      pendingPdfUrl.current = originalPdfUrl;
+      setStatus("placing");
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : "Erreur lors de l'upload.");
       setStatus("error");
     }
+  };
+
+  const finalize = async (sigPlacement?: PlacementCoordData, parPlacement?: PlacementCoordData) => {
+    const token = pendingToken.current;
+    const originalPdfUrl = pendingPdfUrl.current;
+    await createSignatureDoc(token, emailExpediteur.trim(), file!.name, originalPdfUrl, sigPlacement, parPlacement);
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://signdf.ahayer.com";
+    setShareUrl(`${appUrl}/sign/${token}`);
+    setStatus("share");
   };
 
   const copyLink = async () => {
@@ -78,11 +91,29 @@ export default function SignatureForm() {
     setStatus("idle");
     setErrorMsg("");
     setShareUrl("");
+    pendingToken.current = "";
+    pendingPdfUrl.current = "";
     if (inputRef.current) inputRef.current.value = "";
   };
 
   const isLarge = file && file.size > 20 * 1024 * 1024;
   const signatureCount = useSignatureCount();
+
+  if (status === "placing") {
+    return (
+      <Suspense fallback={null}>
+        <PdfPlacementEditor
+          pdfUrl={pendingPdfUrl.current}
+          signerName="Signataire"
+          withParaphe={false}
+          onConfirm={(sig: PlacementCoord, par: PlacementCoord | null) => {
+            finalize(sig, par ?? undefined);
+          }}
+          onCancel={() => finalize()}
+        />
+      </Suspense>
+    );
+  }
 
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden" style={{ background: "var(--bg)" }}>
