@@ -74,7 +74,7 @@ export default function SignatureForm() {
     const token = pendingToken.current;
     const originalPdfUrl = pendingPdfUrl.current;
     await createSignatureDoc(token, emailExpediteur.trim(), file!.name, originalPdfUrl, sigPlacement, parPlacement);
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://signdf.ahayer.com";
     setShareUrl(`${appUrl}/sign/${token}`);
     setStatus("share");
   };
