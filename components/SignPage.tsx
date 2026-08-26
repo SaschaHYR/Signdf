@@ -28,7 +28,7 @@ export default function SignPage({ token }: { token: string }) {
   const [detection, setDetection] = useState<DetectionResult | null>(null);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [textOverlays, setTextOverlays] = useState<TextOverlay[]>([]);
-  const [sigMode, setSigMode] = useState<"typed" | "drawn">("typed");
+  const [sigMode, setSigMode] = useState<"typed" | "drawn">("drawn");
   const [drawnSignature, setDrawnSignature] = useState<string | null>(null);
   const handleDrawnChange = useCallback((v: string | null) => setDrawnSignature(v), []);
 
@@ -260,9 +260,9 @@ export default function SignPage({ token }: { token: string }) {
               <div style={{ marginBottom: 16, border: "1px solid rgba(224,48,48,0.15)", borderRadius: 2, overflow: "hidden" }}>
                 {/* Tab toggle */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", borderBottom: "1px solid rgba(224,48,48,0.15)" }}>
-                  {(["typed", "drawn"] as const).map((mode) => (
-                    <button key={mode} onClick={() => setSigMode(mode)} style={{ padding: "8px 0", background: sigMode === mode ? "rgba(224,48,48,0.08)" : "transparent", border: "none", borderRight: mode === "typed" ? "1px solid rgba(224,48,48,0.15)" : "none", color: sigMode === mode ? "var(--red)" : "var(--zinc-500)", fontFamily: "Orbitron,monospace", fontSize: 8, letterSpacing: 2, textTransform: "uppercase", cursor: "pointer" }}>
-                      {mode === "typed" ? "✦ TEXTE" : "✍ DESSINÉ"}
+                  {(["drawn", "typed"] as const).map((mode) => (
+                    <button key={mode} onClick={() => setSigMode(mode)} style={{ padding: "8px 0", background: sigMode === mode ? "rgba(224,48,48,0.08)" : "transparent", border: "none", borderRight: mode === "drawn" ? "1px solid rgba(224,48,48,0.15)" : "none", color: sigMode === mode ? "var(--red)" : "var(--zinc-500)", fontFamily: "Orbitron,monospace", fontSize: 8, letterSpacing: 2, textTransform: "uppercase", cursor: "pointer" }}>
+                      {mode === "drawn" ? "✍ DESSINÉ" : "✦ TEXTE"}
                     </button>
                   ))}
                 </div>
