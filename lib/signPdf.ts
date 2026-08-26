@@ -101,7 +101,8 @@ export async function signPdf(
     const { width, height } = page.getSize();
 
     const blockW = 210;
-    const blockH = 78;
+    const hasDrawn = !!options.signatureImageDataUrl;
+    const blockH = hasDrawn ? 96 : 78;
     const margin = 20;
 
     let x: number, y: number;
@@ -135,48 +136,50 @@ export async function signPdf(
     });
 
     // Drawn signature image (if provided)
-    if (options.signatureImageDataUrl) {
+    if (hasDrawn) {
       try {
-        const base64 = options.signatureImageDataUrl.split(",")[1];
+        const base64 = options.signatureImageDataUrl!.split(",")[1];
         const binary = atob(base64);
         const pngBytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) pngBytes[i] = binary.charCodeAt(i);
         const pngImage = await doc.embedPng(pngBytes);
-        const imgH = 18;
+        const imgH = 22;
         const imgW = Math.min(pngImage.width * (imgH / pngImage.height), blockW - 16);
-        page.drawImage(pngImage, { x: x + 8, y: y + blockH - 34, width: imgW, height: imgH });
-      } catch { /* fallback to text below */ }
+        // Image just below label
+        page.drawImage(pngImage, { x: x + 8, y: y + blockH - 36, width: imgW, height: imgH });
+      } catch { /* fallback to text */ }
     }
-    // Always show name
+
+    // Name — large italic (text mode) or small label below image (drawn mode)
     page.drawText(fullName, {
-      x: x + 8, y: y + blockH - (options.signatureImageDataUrl ? 44 : 28),
-      size: options.signatureImageDataUrl ? 7 : 15,
-      font: options.signatureImageDataUrl ? fontHelv : fontItalic,
-      color: options.signatureImageDataUrl ? rgb(0.3, 0.3, 0.4) : rgb(0.08, 0.12, 0.22),
+      x: x + 8, y: y + blockH - (hasDrawn ? 46 : 28),
+      size: hasDrawn ? 7 : 15,
+      font: hasDrawn ? fontHelv : fontItalic,
+      color: hasDrawn ? rgb(0.3, 0.3, 0.4) : rgb(0.08, 0.12, 0.22),
     });
 
     // Date
     page.drawText(`Le ${dateStr}`, {
-      x: x + 8, y: y + blockH - 43,
+      x: x + 8, y: y + blockH - (hasDrawn ? 56 : 43),
       size: 7, font: fontRoman, color: rgb(0.3, 0.3, 0.3),
     });
 
     // Divider
     page.drawLine({
-      start: { x: x + 8, y: y + blockH - 50 },
-      end:   { x: x + blockW - 8, y: y + blockH - 50 },
+      start: { x: x + 8, y: y + blockH - (hasDrawn ? 64 : 50) },
+      end:   { x: x + blockW - 8, y: y + blockH - (hasDrawn ? 64 : 50) },
       thickness: 0.4, color: rgb(0.75, 0.75, 0.85),
     });
 
     // Token ID (for SEA traceability)
     page.drawText(`ID : ${options.token}`, {
-      x: x + 8, y: y + blockH - 60,
+      x: x + 8, y: y + blockH - (hasDrawn ? 74 : 60),
       size: 5.5, font: fontHelv, color: rgb(0.4, 0.4, 0.5),
     });
 
     // SEA mention
     page.drawText("Signature Électronique Avancée — valeur probante conforme eIDAS", {
-      x: x + 8, y: y + blockH - 70,
+      x: x + 8, y: y + blockH - (hasDrawn ? 84 : 70),
       size: 5, font: fontHelv, color: rgb(0.55, 0.55, 0.65),
     });
   }
