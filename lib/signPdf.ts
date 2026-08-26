@@ -134,7 +134,7 @@ export async function signPdf(
       size: 6, font: fontHelv, color: rgb(0.878, 0.188, 0.188),
     });
 
-    // Name or drawn signature image
+    // Drawn signature image (if provided)
     if (options.signatureImageDataUrl) {
       try {
         const base64 = options.signatureImageDataUrl.split(",")[1];
@@ -142,16 +142,18 @@ export async function signPdf(
         const pngBytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) pngBytes[i] = binary.charCodeAt(i);
         const pngImage = await doc.embedPng(pngBytes);
-        const imgH = 22;
+        const imgH = 18;
         const imgW = Math.min(pngImage.width * (imgH / pngImage.height), blockW - 16);
-        page.drawImage(pngImage, { x: x + 8, y: y + blockH - 38, width: imgW, height: imgH });
-      } catch { /* fallback to text */ }
-    } else {
-      page.drawText(fullName, {
-        x: x + 8, y: y + blockH - 28,
-        size: 15, font: fontItalic, color: rgb(0.08, 0.12, 0.22),
-      });
+        page.drawImage(pngImage, { x: x + 8, y: y + blockH - 34, width: imgW, height: imgH });
+      } catch { /* fallback to text below */ }
     }
+    // Always show name
+    page.drawText(fullName, {
+      x: x + 8, y: y + blockH - (options.signatureImageDataUrl ? 44 : 28),
+      size: options.signatureImageDataUrl ? 7 : 15,
+      font: options.signatureImageDataUrl ? fontHelv : fontItalic,
+      color: options.signatureImageDataUrl ? rgb(0.3, 0.3, 0.4) : rgb(0.08, 0.12, 0.22),
+    });
 
     // Date
     page.drawText(`Le ${dateStr}`, {
