@@ -105,7 +105,7 @@ export default function SignatureForm() {
         <PdfPlacementEditor
           pdfUrl={pendingPdfUrl.current}
           signerName="Signataire"
-          withParaphe={false}
+          withParaphe={true}
           onConfirm={(sig: PlacementCoord, par: PlacementCoord | null) => {
             finalize(sig, par ?? undefined);
           }}
