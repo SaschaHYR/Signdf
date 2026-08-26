@@ -52,6 +52,7 @@ type DragTarget =
 export default function PdfPlacementEditor({ pdfUrl, signerName, withParaphe, onConfirm, onCancel }: Props) {
   const [pages, setPages] = useState<PageInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [parapheEnabled, setParapheEnabled] = useState(false);
   const [blocks, setBlocks] = useState<DraggableBlock[]>([
     { id: "signature", page: 0, xRatio: 0.6, yRatio: 0.85 },
     { id: "paraphe",   page: 0, xRatio: 0.05, yRatio: 0.85 },
@@ -215,7 +216,7 @@ export default function PdfPlacementEditor({ pdfUrl, signerName, withParaphe, on
 
   const handleConfirm = () => {
     const sig = blocks.find(b => b.id === "signature")!;
-    const par = withParaphe ? blocks.find(b => b.id === "paraphe")! : null;
+    const par = (withParaphe && parapheEnabled) ? blocks.find(b => b.id === "paraphe")! : null;
     const overlays: TextOverlay[] = textBlocks
       .filter(b => b.text.trim())
       .map(b => ({ id: b.id, page: b.page, xRatio: b.xRatio, yRatio: b.yRatio, text: b.text, fontSize: b.fontSize }));
@@ -252,7 +253,12 @@ export default function PdfPlacementEditor({ pdfUrl, signerName, withParaphe, on
       {/* Legend */}
       <div style={{ padding: "6px 16px", background: "rgba(18,18,20,0.9)", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", gap: 16, flexShrink: 0, flexWrap: "wrap", alignItems: "center" }}>
         <LegendItem color="#4f8ef7" label="Signature" />
-        {withParaphe && <LegendItem color="#22C55E" label="Paraphe (toutes pages)" />}
+        {withParaphe && (
+          <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontFamily: "Rajdhani,sans-serif", fontSize: 12, color: parapheEnabled ? "#22C55E" : "var(--zinc-400)" }}>
+            <input type="checkbox" checked={parapheEnabled} onChange={e => setParapheEnabled(e.target.checked)} style={{ accentColor: "#22C55E", width: 14, height: 14, cursor: "pointer" }} />
+            Paraphe (toutes pages)
+          </label>
+        )}
         {textBlocks.length > 0 && <LegendItem color="#fbbf24" label={`${textBlocks.length} texte(s) libre(s)`} />}
       </div>
 
@@ -269,7 +275,7 @@ export default function PdfPlacementEditor({ pdfUrl, signerName, withParaphe, on
         {pages.map((pageInfo, pageIdx) => {
           const canvasDataUrl = pageInfo.canvas.toDataURL();
           const sigBlock = blocks.find(b => b.id === "signature" && b.page === pageIdx);
-          const parPos = withParaphe ? blocks.find(b => b.id === "paraphe") : undefined;
+          const parPos = (withParaphe && parapheEnabled) ? blocks.find(b => b.id === "paraphe") : undefined;
           const pageTexts = textBlocks.filter(b => b.page === pageIdx);
 
           return (
